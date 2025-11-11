@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TidyVid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-right: 0.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #9ca3af;
+            border-radius: 12px;
+            padding: 4rem 6rem;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            color: white;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .upload-area:hover {
+            border-color: #6366f1;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .upload-area.dragover {
+            border-color: #4f46e5;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-link {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .upload-info {
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            opacity: 0.8;
+        }
+
+        .processing-container {
+            margin-top: 2rem;
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 2rem;
+            display: none;
+            text-align: center;
+            color: white;
+        }
+
+        .processing-container.show {
+            display: block;
+        }
+
+        .processing-status {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #60a5fa;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .message {
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .error-message {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .success-message {
+            color: #86efac;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        #file_upload {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 2.5rem;
+            }
+
+            .upload-area {
+                padding: 2rem 3rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+    <script defer data-domain="tidyvid.com" src="https://plausible.io/js/script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="TidyVid Logo">
+                <h2 class="logo-text">TidyVid</h2>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="uploadSection">
+                <h1 class="page-title">Video Captioner</h1>
+                
+                <input type="file" id="file_upload" accept="video/*">
+                <label for="file_upload">
+                    <div class="upload-area" id="uploadArea" aria-label="Upload video area">
+                        <div class="upload-text">Drag Your Video Here!</div>
+                        <div class="upload-link">or click to select a file</div>
+                    </div>
+                </label>
+
+                <div id="errorMessages"></div>
+            </div>
+
+            <div class="processing-container" id="processingContainer">
+                <div class="processing-status" id="processingStatus">Processing...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0%</div>
+                <div id="statusMessages"></div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <span>support: </span>
+            <a href="mailto:hello@tidyvid.com?subject=TidyVid Support">hello@tidyvid.com</a>
+        </footer>
+    </div>
+
+    <script type="module">
+        'use strict';
+
+        import { FFmpeg } from '/ffmpeg/ffmpeg/dist/esm/index.js';
+        import { toBlobURL, fetchFile } from '/ffmpeg/util/dist/esm/index.js';
+
+        const MAX_FILE_SIZE = 4.8 * 1024 * 1024 * 1024;
+        const API_BASE = '/api';
+
+        let ffmpeg = null;
+        let loaded = false;
+
+        async function loadFFmpeg() {
+            if (loaded) return;
+            showProcessing('Loading audio extractor...');
+            ffmpeg = new FFmpeg();
+            ffmpeg.on('log', ({ message }) => {
+                console.log(message);
+            });
+            ffmpeg.on('progress', ({ progress, time }) => {
+                // Progress during extraction will be handled separately
+                console.log(`Progress: ${progress * 100}%`);
+            });
+
+            const baseURL = '/ffmpeg/core/dist/esm';
+            await ffmpeg.load({
+                coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                // Omit workerURL for single-thread mode
+            });
+            loaded = true;
+        }
+
+        function initializeApp() {
+            initializeEventHandlers();
+        }
+
+        function initializeEventHandlers() {
+            const fileInput = document.getElementById('file_upload');
+            const uploadArea = document.getElementById('uploadArea');
+
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('video')) {
+                    processFile(files[0]);
+                }
+            });
+        }
+
+        async function processFile(file) {
+            clearMessages();
+
+            if (file.size > MAX_FILE_SIZE) {
+                showMessage('File size exceeds the maximum limit of 4.8GB', 'error');
+                return;
+            }
+
+            if (!file.type.startsWith('video')) {
+                showMessage('Please upload a video file', 'error');
+                return;
+            }
+
+            showProcessing('Preparing...');
+
+            try {
+                await loadFFmpeg();
+
+                showProcessing('Extracting audio...');
+
+                const inputName = 'input.' + file.name.split('.').pop();
+                await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+                await ffmpeg.exec(['-i', inputName, '-vn', '-c:a', 'copy', 'output.m4a']);
+
+                const data = await ffmpeg.readFile('output.m4a');
+                const audioBlob = new Blob([data.buffer], { type: 'audio/mp4' });
+
+                const duration = await getAudioDuration(audioBlob);
+
+                updateProgress(33, 'Audio extracted, uploading audio...');
+
+                await uploadAudio(audioBlob, file.name, duration);
+                await uploadVideo(file, file.name, duration);
+            } catch (error) {
+                console.error('[ProcessingError] ' + error.message);
+                showMessage('Error processing video: ' + error.message, 'error');
+                resetUpload();
+            }
+        }
+
+        async function getAudioDuration(blob) {
+            return new Promise((resolve) => {
+                const audio = new Audio(URL.createObjectURL(blob));
+                audio.onloadedmetadata = () => {
+                    resolve(audio.duration);
+                    URL.revokeObjectURL(audio.src);
+                };
+            });
+        }
+
+        async function getUploadToken(fileName, fileType, endpoint = 'audio_upload_token') {
+            try {
+                const response = await fetch(`${API_BASE}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ fileName, fileType })
+                });
+                
+                if (!response.ok) {
+                    console.error(`[TokenFetchError] HTTP ${response.status} - ${fileName}`);
+                    throw new Error('Failed to fetch token');
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`[TokenFetchError] ${error.message} - ${fileName}`);
+                throw error;
+            }
+        }
+
+        async function uploadAudio(audioBlob, originalFileName, duration) {
+            const audioFileName = originalFileName.replace(/\.[^/.]+$/, '') + '.m4a';
+            const token = await getUploadToken(audioFileName, 'audio/mp4', 'audio_upload_token');
+            
+            return new Promise((resolve, reject) => {
+                const req = new XMLHttpRequest();
+                
+                req.onload = function() {
+                    if (req.status >= 200 && req.status < 300) {
+                        updateProgress(66, 'Audio uploaded, uploading video...');
+                        resolve();
+                    } else {
+                        console.error(`[AudioUploadError] HTTP ${req.status} - ${audioFileName}`);
+                        reject(new Error(`Audio upload failed: ${req.status}`));
+                    }
+                };
+
+                req.upload.addEventListener("progress", (evt) => {
+                    if (evt.lengthComputable) {
+                        const percentComplete = Math.round((evt.loaded / evt.total) * 33) + 33;
+                        updateProgress(percentComplete, 'Uploading audio...');
+                    }
+                });
+
+                req.upload.addEventListener("error", () => {
+                    console.error(`[AudioUploadErrorHandler] ${req.status} - ${audioFileName}`);
+                    reject(new Error('Audio upload error'));
+                });
+
+                req.upload.addEventListener("abort", () => {
+                    console.error(`[AudioUploadAbortHandler] ${req.status} - ${audioFileName}`);
+                    reject(new Error('Audio upload aborted'));
+                });
+
+                req.open("PUT", token.token, true);
+                req.setRequestHeader("Content-Type", 'audio/mp4');
+                req.send(audioBlob);
+            });
+        }
+
+        async function uploadVideo(videoBlob, originalFileName, duration) {
+            const token = await getUploadToken(originalFileName, videoBlob.type, 'video_upload_token');
+            
+            return new Promise((resolve, reject) => {
+                const req = new XMLHttpRequest();
+                
+                req.onload = function() {
+                    if (req.status >= 200 && req.status < 300) {
+                        transferComplete(originalFileName, duration);
+                        resolve();
+                    } else {
+                        console.error(`[VideoUploadError] HTTP ${req.status} - ${originalFileName}`);
+                        reject(new Error(`Video upload failed: ${req.status}`));
+                    }
+                };
+
+                req.upload.addEventListener("progress", (evt) => {
+                    if (evt.lengthComputable) {
+                        const percentComplete = Math.round((evt.loaded / evt.total) * 33) + 66;
+                        updateProgress(percentComplete, 'Uploading video...');
+                    }
+                });
+
+                req.upload.addEventListener("error", () => {
+                    console.error(`[VideoUploadErrorHandler] ${req.status} - ${originalFileName}`);
+                    reject(new Error('Video upload error'));
+                });
+
+                req.upload.addEventListener("abort", () => {
+                    console.error(`[VideoUploadAbortHandler] ${req.status} - ${originalFileName}`);
+                    reject(new Error('Video upload aborted'));
+                });
+
+                req.open("PUT", token.token, true);
+                req.setRequestHeader("Content-Type", videoBlob.type);
+                req.send(videoBlob);
+            });
+        }
+
+        async function transferComplete(fileName, duration) {
+            updateProgress(100, 'Upload complete, starting transcription...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/transcribe_audio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName, duration })
+                });
+                
+                if (!response.ok) {
+                    console.error(`[UploadCompletionError] HTTP ${response.status} - ${fileName}`);
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                showMessage('Video and audio uploaded, transcription started successfully! Redirecting...', 'success');
+                
+                // Redirect to captions page with video name after a short delay
+                setTimeout(() => {
+                    window.location.href = `/jso.html?name=${encodeURIComponent(fileName)}`;
+                }, 1500);
+                
+            } catch (error) {
+                console.error(`[UploadCompletionError] ${error.message} - ${fileName}`);
+                showMessage('Error starting transcription: ' + error.message, 'error');
+            }
+        }
+
+        function showProcessing(message) {
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('processingContainer').classList.add('show');
+            document.getElementById('processingStatus').textContent = message;
+        }
+
+        function updateProgress(percent, message) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+            if (message) {
+                document.getElementById('processingStatus').textContent = message;
+            }
+        }
+
+        function showMessage(message, type = 'error') {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.className = `message ${type === 'error' ? 'error-message' : 'success-message'}`;
+            
+            const container = document.getElementById('processingContainer').classList.contains('show') 
+                ? document.getElementById('statusMessages')
+                : document.getElementById('errorMessages');
+            
+            container.appendChild(messageDiv);
+        }
+
+        function clearMessages() {
+            document.getElementById('errorMessages').innerHTML = '';
+            document.getElementById('statusMessages').innerHTML = '';
+        }
+
+        function resetUpload() {
+            document.getElementById('processingContainer').classList.remove('show');
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            clearMessages();
+            document.getElementById('file_upload').value = '';
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>

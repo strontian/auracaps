@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FFmpeg WASM Caption Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    #result {
+      margin-top: 20px;
+    }
+    video {
+      max-width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-top: 10px;
+      background: #000;
+    }
+    .progress {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <h1>FFmpeg WASM Caption Demo</h1>
+  <p>This demo adds hardcoded ASS subtitles to a video.</p>
+  
+  <button id="loadBtn">1. Load FFmpeg</button>
+  <button id="processBtn" disabled>2. Add Captions to Video</button>
+  
+  <div id="output">
+    <div id="status">Ready to start...</div>
+    <div id="progress" class="progress"></div>
+  </div>
+  
+  <div id="result"></div>
+
+  <script type="module">
+    import { FFmpeg } from '/ffmpeg/ffmpeg/dist/esm/index.js';
+    import { toBlobURL, fetchFile } from '/ffmpeg/util/dist/esm/index.js';
+
+    const loadBtn = document.getElementById('loadBtn');
+    const processBtn = document.getElementById('processBtn');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const result = document.getElementById('result');
+
+    let ffmpeg = null;
+    const baseURL = '/ffmpeg/core/dist/esm';
+
+    // Load FFmpeg
+    loadBtn.addEventListener('click', async () => {
+      loadBtn.disabled = true;
+      status.textContent = 'Loading FFmpeg WASM...';
+      
+      try {
+        ffmpeg = new FFmpeg();
+        
+        // Set up logging
+        ffmpeg.on('log', ({ message }) => {
+          console.log(message);
+        });
+        
+        // Set up progress tracking
+        ffmpeg.on('progress', ({ progress: p, time }) => {
+          progress.textContent = `Progress: ${(p * 100).toFixed(2)}% (time: ${time}s)`;
+        });
+
+        // Load FFmpeg with core files from our server
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+
+        status.textContent = 'FFmpeg loaded successfully! ✓';
+        processBtn.disabled = false;
+      } catch (error) {
+        status.textContent = `Error loading FFmpeg: ${error.message}`;
+        console.error(error);
+        loadBtn.disabled = false;
+      }
+    });
+
+    // Process video
+    processBtn.addEventListener('click', async () => {
+      processBtn.disabled = true;
+      status.textContent = 'Fetching video...';
+      result.innerHTML = '';
+      
+      try {
+        // Fetch the video file
+        const videoURL = 'https://pub-d930c63077b24e93b1887ae7723a7db7.r2.dev/original.mp4';
+        const videoData = await fetchFile(videoURL);
+        
+        status.textContent = 'Writing video to FFmpeg filesystem...';
+        await ffmpeg.writeFile('input.mp4', videoData);
+
+        // Create ASS subtitle file
+        const assContent = `[Script Info]
+Title: Demo Subtitles
+ScriptType: v4.00+
+WrapStyle: 0
+PlayResX: 384
+PlayResY: 288
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.16,0:00:02.00,Default,,0,0,0,,If you're worried about making the right decision
+Dialogue: 0,0:00:02.00,0:00:04.00,Default,,0,0,0,,on what AI model to use, let me
+Dialogue: 0,0:00:04.00,0:00:05.36,Default,,0,0,0,,give you two data points that are gonna
+Dialogue: 0,0:00:05.36,0:00:08.00,Default,,0,0,0,,simplify everything. First, here's what our team does
+Dialogue: 0,0:00:08.00,0:00:11.20,Default,,0,0,0,,for every single prompting project we are doing.
+Dialogue: 0,0:00:11.20,0:00:13.92,Default,,0,0,0,,We start with GPT four, the most powerful
+Dialogue: 0,0:00:13.92,0:00:16.75,Default,,0,0,0,,model, because we want to prove that that
+Dialogue: 0,0:00:16.75,0:00:18.91,Default,,0,0,0,,use case can work. The number one thing
+Dialogue: 0,0:00:18.91,0:00:20.74,Default,,0,0,0,,with AI is proving that it can actually`;
+
+        status.textContent = 'Writing subtitle file...';
+        await ffmpeg.writeFile('subtitles.ass', new TextEncoder().encode(assContent));
+
+        status.textContent = 'Adding captions to video (this may take a while)...';
+        // Add subtitles to video
+        await ffmpeg.exec([
+          '-i', 'input.mp4',
+          '-vf', 'ass=subtitles.ass',
+          '-c:a', 'copy',
+          'output.mp4'
+        ]);
+
+        status.textContent = 'Reading output...';
+        const data = await ffmpeg.readFile('output.mp4');
+
+        // Create and display the video
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        
+        result.innerHTML = `
+          <h3>Video with Captions:</h3>
+          <video controls src="${url}"></video>
+          <p><a href="${url}" download="captioned_video.mp4">Download Video</a></p>
+        `;
+
+        status.textContent = 'Complete! Captions added successfully ✓';
+        progress.textContent = '';
+        processBtn.disabled = false;
+
+      } catch (error) {
+        status.textContent = `Error processing video: ${error.message}`;
+        console.error(error);
+        processBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

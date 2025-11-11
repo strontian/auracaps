@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TidyVid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-right: 0.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .controls-section {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .dropdown-button:hover {
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 0.5rem;
+            width: 224px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            display: none;
+            z-index: 10;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            color: #374151;
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+        .dropdown-separator {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 0.25rem 0;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .welcome-text {
+            max-width: 400px;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .upload-area {
+            border: 2px dashed #9ca3af;
+            border-radius: 12px;
+            padding: 4rem 6rem;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            color: white;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .upload-area:hover {
+            border-color: #6366f1;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .upload-area.dragover {
+            border-color: #4f46e5;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-link {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .upload-info {
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            opacity: 0.8;
+        }
+
+        .processing-container {
+            margin-top: 2rem;
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 2rem;
+            display: none;
+            text-align: center;
+            color: white;
+        }
+
+        .processing-container.show {
+            display: block;
+        }
+
+        .processing-status {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #60a5fa;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .error-message {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .success-message {
+            color: #86efac;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        #file_upload {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .upload-area {
+                padding: 2rem 3rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .controls-section {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="TidyVid Logo">
+                <h2 class="logo-text">TidyVid</h2>
+            </div>
+            <div class="controls-section">
+                <div class="dropdown" id="paymentDropdown">
+                    <button class="dropdown-button">
+                        <span id="balanceText">5 mins</span>
+                        <span>▼</span>
+                    </button>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item" onclick="purchaseMinutes(10)">buy 10 minutes for $5</button>
+                        <button class="dropdown-item" onclick="purchaseMinutes(60)">buy 60 minutes for $20</button>
+                    </div>
+                </div>
+                <div class="dropdown" id="videosDropdown">
+                    <button class="dropdown-button">
+                        My Videos
+                        <span>▼</span>
+                    </button>
+                    <div class="dropdown-menu" id="videosMenu">
+                        <div class="dropdown-separator"></div>
+                        <button class="dropdown-item" onclick="signOut()">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="uploadSection">
+                <p class="welcome-text">
+                    Welcome to TidyVid! 👋 Upload a video to extract and transcribe its audio.
+                </p>
+                
+                <input type="file" id="file_upload" accept="video/*">
+                <label for="file_upload">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-text">Drag Your Video Here!</div>
+                        <div class="upload-link">or click to select a file</div>
+                        <div class="upload-info">Audio will be extracted and uploaded automatically</div>
+                    </div>
+                </label>
+
+                <div id="errorMessages"></div>
+            </div>
+
+            <div class="processing-container" id="processingContainer">
+                <div class="processing-status" id="processingStatus">Processing...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0%</div>
+                <div id="statusMessages"></div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <span>support: </span>
+            <a href="mailto:hello@tidyvid.com?subject=TidyVid Support">hello@tidyvid.com</a>
+        </footer>
+    </div>
+
+    <script type="module">
+        import * as MP4Box from './mp4box.all.js'
+
+        const MAX_FILE_SIZE = 4.8 * 1024 * 1024 * 1024;
+        let state = {
+            balance: 300
+        };
+
+        function initializeApp() {
+            initializeEventHandlers();
+            updateBalanceDisplay();
+        }
+
+        function initializeEventHandlers() {
+            const fileInput = document.getElementById('file_upload');
+            const uploadArea = document.getElementById('uploadArea');
+
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('video')) {
+                    processFile(files[0]);
+                }
+            });
+
+            document.querySelectorAll('.dropdown-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const dropdown = button.closest('.dropdown');
+                    const menu = dropdown.querySelector('.dropdown-menu');
+                    
+                    document.querySelectorAll('.dropdown-menu').forEach(m => {
+                        if (m !== menu) m.classList.remove('show');
+                    });
+                    
+                    menu.classList.toggle('show');
+                });
+            });
+
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.dropdown-menu').forEach(m => {
+                    m.classList.remove('show');
+                });
+            });
+        }
+
+        async function processFile(file) {
+            console.log("Processing file:", file.name);
+            
+            clearMessages();
+
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File size exceeds the maximum limit of 4.8GB');
+                return;
+            }
+
+            if (!file.type.startsWith('video')) {
+                showError('Please upload a video file');
+                return;
+            }
+
+            showProcessing('Reading video file...');
+
+            try {
+                const audioBlob = await extractAudio(file);
+                updateProgress(50, 'Audio extracted, preparing upload...');
+                
+                await uploadAudio(audioBlob, file.name);
+            } catch (error) {
+                console.error('Processing error:', error);
+                reportError('ProcessingError', error.message, file.name);
+                showError('Error processing video: ' + error.message);
+            }
+        }
+
+        async function extractAudio(file) {
+            return new Promise((resolve, reject) => {
+                const mp4boxfile = MP4Box.createFile();
+                const segments = [];
+                let audioTrackId = null;
+                let duration = 0;
+
+                mp4boxfile.onError = (e) => {
+                    console.error('MP4Box error:', e);
+                    reject(new Error('Failed to parse video file: ' + e));
+                };
+
+                mp4boxfile.onReady = (info) => {
+                    console.log('File info:', info);
+                    updateProgress(20, 'File parsed, extracting audio...');
+                    
+                    duration = info.duration / info.timescale;
+                    
+                    // Find audio track
+                    const audioTrack = info.tracks.find(track => track.type === 'audio');
+                    
+                    if (!audioTrack) {
+                        reject(new Error('No audio track found in video'));
+                        return;
+                    }
+
+                    audioTrackId = audioTrack.id;
+                    console.log('Found audio track:', audioTrackId, audioTrack);
+                    
+                    // Set up segmentation for audio track
+                    mp4boxfile.onSegment = (id, user, buffer, sampleNum, isLast) => {
+                        console.log(`Received segment for track ${id}, sample ${sampleNum}, last: ${isLast}`);
+                        segments.push(new Uint8Array(buffer));
+                        
+                        if (isLast) {
+                            updateProgress(45, 'Combining audio segments...');
+                            
+                            // Combine all segments into a single blob
+                            const audioBlob = new Blob(segments, { type: 'audio/mp4' });
+                            audioBlob.duration = duration;
+                            
+                            console.log('Audio extraction complete, size:', audioBlob.size, 'duration:', duration);
+                            resolve(audioBlob);
+                        }
+                    };
+
+                    // Configure segmentation - use user parameter to track the same ID
+                    mp4boxfile.setSegmentOptions(audioTrackId, audioTrackId, { 
+                        nbSamples: 1000 
+                    });
+                    
+                    // Initialize segmentation
+                    const initSegments = mp4boxfile.initializeSegmentation();
+                    console.log('Initialization segments:', initSegments);
+                    
+                    // Add init segment for the audio track - ensure we use the same track ID
+                    if (initSegments && initSegments.length > 0) {
+                        const audioInitSeg = initSegments.find(seg => seg.user === audioTrackId);
+                        if (audioInitSeg) {
+                            segments.push(new Uint8Array(audioInitSeg.buffer));
+                        }
+                    }
+                    
+                    updateProgress(30, 'Segmenting audio...');
+                    
+                    // Start processing
+                    mp4boxfile.start();
+                };
+
+                // Read the file and append to MP4Box
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    const arrayBuffer = e.target.result;
+                    arrayBuffer.fileStart = 0;
+                    
+                    updateProgress(10, 'Parsing video file...');
+                    mp4boxfile.appendBuffer(arrayBuffer);
+                    mp4boxfile.flush();
+                };
+
+                reader.onerror = () => {
+                    reject(new Error('Failed to read video file'));
+                };
+
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function getUploadToken(fileName, fileType) {
+            try {
+                const response = await fetch('http://localhost:3000/api/audio_upload_token', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ fileName, fileType })
+                });
+                
+                if (!response.ok) {
+                    reportError('TokenFetchError', `HTTP ${response.status}`, fileName);
+                    throw new Error('Failed to fetch token');
+                }
+                
+                return await response.json();
+            } catch (error) {
+                reportError('TokenFetchError', error.message, fileName);
+                throw error;
+            }
+        }
+
+        async function uploadAudio(audioBlob, originalFileName) {
+            const audioFileName = originalFileName.replace(/\.[^/.]+$/, '') + '.m4a';
+            const token = await getUploadToken(audioFileName, 'audio/mp4');
+            
+            console.log("token:", token);
+
+            return new Promise((resolve, reject) => {
+                const req = new XMLHttpRequest();
+                
+                req.onload = function() {
+                    console.log('onload called', req);
+                    if (req.status >= 200 && req.status < 300) {
+                        console.log('onload success!');
+                        transferComplete(audioFileName, audioBlob.duration || 0);
+                        resolve();
+                    } else {
+                        reportError('UploadError', `HTTP ${req.status}`, audioFileName);
+                        reject(new Error(`Upload failed: ${req.status}`));
+                    }
+                };
+
+                req.upload.addEventListener("progress", (evt) => {
+                    if (evt.lengthComputable) {
+                        const percentComplete = Math.round((evt.loaded / evt.total) * 50) + 50;
+                        updateProgress(percentComplete, 'Uploading audio...');
+                    }
+                });
+
+                req.upload.addEventListener("error", () => {
+                    console.log('error listener hit');
+                    reportError('UploadErrorHandler', req.status, audioFileName);
+                    reject(new Error('Upload error'));
+                });
+
+                req.upload.addEventListener("abort", () => {
+                    reportError('UploadAbortHandler', req.status, audioFileName);
+                    reject(new Error('Upload aborted'));
+                });
+
+                req.open("PUT", token.token, true);
+                req.setRequestHeader("Content-Type", 'audio/mp4');
+                req.send(audioBlob);
+            });
+        }
+
+        function transferComplete(fileName, duration) {
+            updateProgress(100, 'Upload complete, starting transcription...');
+            
+            fetch('http://localhost:3000/api/transcribe_audio', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    fileName: fileName,
+                    duration: duration
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    reportError('UploadCompletionError', `HTTP ${response.status}`, fileName);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data);
+                showSuccess('Upload and transcription started successfully!');
+                setTimeout(() => {
+                    resetUpload();
+                }, 3000);
+            })
+            .catch(error => {
+                reportError('UploadCompletionError2', error.message, fileName);
+                console.error('Error notifying server after upload:', error);
+                showError('Error starting transcription: ' + error.message);
+            });
+        }
+
+        function showProcessing(message) {
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('processingContainer').classList.add('show');
+            document.getElementById('processingStatus').textContent = message;
+        }
+
+        function updateProgress(percent, message) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+            if (message) {
+                document.getElementById('processingStatus').textContent = message;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            
+            const container = document.getElementById('processingContainer').classList.contains('show') 
+                ? document.getElementById('statusMessages')
+                : document.getElementById('errorMessages');
+            
+            container.appendChild(errorDiv);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.getElementById('statusMessages').appendChild(successDiv);
+        }
+
+        function clearMessages() {
+            document.getElementById('errorMessages').innerHTML = '';
+            document.getElementById('statusMessages').innerHTML = '';
+        }
+
+        function resetUpload() {
+            document.getElementById('processingContainer').classList.remove('show');
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            clearMessages();
+            document.getElementById('file_upload').value = '';
+        }
+
+        function reportError(type, message, fileName) {
+            console.error(`${type}:`, message, fileName);
+        }
+
+        function updateBalanceDisplay() {
+            const minutes = Math.floor(state.balance / 60);
+            document.getElementById('balanceText').textContent = `${minutes} mins`;
+        }
+
+        window.purchaseMinutes = function(amount) {
+            console.log('Purchase:', amount);
+        };
+
+        window.signOut = function() {
+            window.location.href = '/login';
+        };
+
+        initializeApp();
+    </script>
+</body>
+</html>

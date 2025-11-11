@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TidyVid</title>
+    <style>
+        :root {
+            --bg-glass: rgba(255, 255, 255, 0.1);
+            --border-glass: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-right: 0.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .video-player-container {
+            margin-top: 2rem;
+            max-width: 800px;
+            width: 100%;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .video-player-container.show {
+            display: block;
+        }
+
+        .video-wrapper {
+            position: relative;
+            background: black;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-player {
+            width: 100%;
+            max-height: 500px;
+            background: black;
+            display: block;
+        }
+
+        .video-info {
+            margin-top: 1rem;
+            color: white;
+        }
+
+        .video-info h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .subtitle-controls {
+            margin-top: 1.5rem;
+            background: var(--bg-glass);
+            border-radius: 8px;
+            padding: 1rem;
+            color: white;
+        }
+
+        .subtitle-controls h4 {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #e2e8f0;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .control-group.hidden {
+            display: none;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .control-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            min-width: 120px;
+        }
+
+        .control-input {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #60a5fa;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #60a5fa;
+            cursor: pointer;
+            border: none;
+        }
+
+        .color-input {
+            width: 60px;
+            height: 35px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .xb {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .xb:hover {
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .xb.processing {
+            background: rgba(255, 255, 255, 0.7);
+            cursor: not-allowed;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #374151;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .success-message {
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .warning-message {
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .control-label {
+                min-width: auto;
+            }
+
+            .control-input {
+                max-width: none;
+            }
+        }
+
+        #shadowSlider {
+            visibility: hidden;
+        }
+    </style>
+    <script defer data-domain="tidyvid.com" src="https://plausible.io/js/script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="TidyVid Logo">
+                <h2 class="logo-text">TidyVid</h2>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="video-player-container" id="videoPlayerContainer">
+                <div class="video-info">
+                    <h3 id="videoTitle">Add Captions</h3>
+                </div>
+                <div class="video-wrapper">
+                    <video class="video-player" id="videoPlayer" controls></video>
+                </div>
+
+                <div class="subtitle-controls">
+                    <h4>Customize Subtitles</h4>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span class="control-label">Vertical Position:</span>
+                            <div class="control-input">
+                                <input type="range" id="positionSlider" class="slider" min="0" max="100" value="15">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span class="control-label">Font Size:</span>
+                            <div class="control-input">
+                                <input type="range" id="fontSizeSlider" class="slider" min="24" max="64" value="20">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span class="control-label">Text Color:</span>
+                            <div class="control-input">
+                                <input type="color" id="fontColorPicker" class="color-input" value="#ffffff">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span class="control-label">Text Outline Color:</span>
+                            <div class="control-input">
+                                <input type="color" id="outlineColorPicker" class="color-input" value="#000000">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group" id="backColorGroup">
+                        <div class="control-row">
+                            <span class="control-label">Background Color:</span>
+                            <div class="control-input">
+                                <input type="color" id="backColorPicker" class="color-input" value="#000000">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span class="control-label">Background Box:</span>
+                            <div class="control-input">
+                                <select id="borderStyleSelect" class="xb" style="width: 100%;">
+                                    <option value="1">No Background</option>
+                                    <option value="4">Background Box</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span class="control-label">Outline Thickness:</span>
+                            <div class="control-input">
+                                <input type="range" id="outlineSlider" class="slider" min="0" max="10" value="2">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <button id="exportButton" class="xb">Export Video</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="errorMessages"></div>
+        </main>
+
+        <footer class="footer">
+            <span>support: </span>
+            <a href="mailto:hello@tidyvid.com?subject=TidyVid Support">hello@tidyvid.com</a>
+        </footer>
+    </div>
+
+    <!-- Load JavascriptSubtitlesOctopus as a regular script -->
+    <script src="./subtitles-octopus.min.js"></script>
+
+    <script>
+        // Application state
+        let state = {
+            octopusInstance: null,
+            videoName: null
+        };
+
+        // Store fetched SRT subtitles and parsed dialogues
+        let srtSubtitles = '';
+        let parsedDialogues = '';
+
+        async function fetchWithError(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Failed: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        function toggleBackgroundColorControl() {
+            const borderStyle = document.getElementById('borderStyleSelect').value;
+            const backColorGroup = document.getElementById('backColorGroup');
+            
+            if (borderStyle === '1') {
+                // Outline selected - hide background color
+                backColorGroup.classList.add('hidden');
+            } else {
+                // Background Box selected - show background color
+                backColorGroup.classList.remove('hidden');
+            }
+        }
+
+        async function loadVideo() {
+            try {
+                // Get video name from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const videoName = urlParams.get('name');
+                state.videoName = videoName;
+                
+                // Build endpoint URLs with video name
+                const videoEndpoint = `/api/captions/video_token?name=${encodeURIComponent(state.videoName)}`                    
+                const transcriptEndpoint = `/api/captions/transcript/?name=${encodeURIComponent(state.videoName)}`
+
+                const videoUrl = await fetchWithError(videoEndpoint);
+                srtSubtitles = await fetchWithError(transcriptEndpoint);
+                parsedDialogues = srtToAssDialogue(srtSubtitles);
+
+                console.log(srtSubtitles)
+                // Set up video player
+                const videoPlayer = document.getElementById('videoPlayer');
+                videoPlayer.src = videoUrl;
+
+                // Update title with video name if available
+                const displayTitle = state.videoName ? `Add Captions - ${state.videoName}` : 'Add Captions';
+                document.getElementById('videoTitle').textContent = displayTitle;
+                document.getElementById('videoPlayerContainer').classList.add('show');
+
+                // Add event listeners
+                videoPlayer.addEventListener('loadedmetadata', () => {
+                    console.log('Video metadata loaded, dimensions:', videoPlayer.videoWidth, 'x', videoPlayer.videoHeight);
+                    
+                    // Calculate relative to video height
+                    const videoHeight = videoPlayer.videoHeight || 1080;
+
+                    // Font size: roughly 3-7% of video height
+                    const minFontSize = Math.round(videoHeight * 0.03);  // ~32 for 1080p
+                    const maxFontSize = Math.round(videoHeight * 0.07);  // ~75 for 1080p
+                    const defaultFontSize = Math.round(videoHeight * 0.045); // ~48 for 1080p
+
+                    // Position: 5-25% of video height from bottom
+                    const minPosition = Math.round(videoHeight * 0.05);  // ~54 for 1080p
+                    const maxPosition = Math.round(videoHeight * .8);  // ~270 for 1080p
+                    const defaultPosition = Math.round(videoHeight * 0.08); // ~86 for 1080p
+
+                    document.getElementById('fontSizeSlider').min = minFontSize;
+                    document.getElementById('fontSizeSlider').max = maxFontSize;
+                    document.getElementById('fontSizeSlider').value = defaultFontSize;
+
+                    document.getElementById('positionSlider').min = minPosition;
+                    document.getElementById('positionSlider').max = maxPosition;
+                    document.getElementById('positionSlider').value = defaultPosition;
+                    
+                    // Initialize subtitles after video is ready
+                    initializeSubtitles();
+                }, { once: true });
+                
+                document.getElementById('positionSlider').addEventListener('input', initializeSubtitles);
+                document.getElementById('fontSizeSlider').addEventListener('input', initializeSubtitles);
+                document.getElementById('fontColorPicker').addEventListener('change', initializeSubtitles);
+                document.getElementById('outlineColorPicker').addEventListener('change', initializeSubtitles);
+                document.getElementById('backColorPicker').addEventListener('change', initializeSubtitles);
+                document.getElementById('borderStyleSelect').addEventListener('change', function() {
+                    toggleBackgroundColorControl();
+                    initializeSubtitles();
+                });
+                document.getElementById('outlineSlider').addEventListener('input', initializeSubtitles);
+                document.getElementById('exportButton').addEventListener('click', exportSubtitles);
+                
+                // Initialize background color control visibility
+                toggleBackgroundColorControl();
+            } catch (error) {
+                showError('Error loading video: ' + error.message);
+            }
+        }
+
+        function initializeSubtitles() {
+          const video = document.getElementById('videoPlayer');
+
+          if (!video || !srtSubtitles) {
+              showError('Video player or subtitles not ready');
+              return;
+          }
+
+          if (!video.videoWidth || !video.videoHeight) {
+              console.log('Video dimensions not ready yet, waiting...');
+              return;
+          }
+
+          try {
+              const assContent = createASSContent();
+
+              // Create instance on first run with initial content
+              if (!state.octopusInstance) {
+                  state.octopusInstance = new SubtitlesOctopus({
+                      video: video,
+                      subContent: assContent,  // Provide initial content
+                      fonts: ['/Roboto.ttf'],
+                      workerUrl: './subtitles-octopus-worker.js'
+                  });
+              } else {
+                  // Update existing instance
+                  state.octopusInstance.setTrack(assContent);
+              }
+
+          } catch (error) {
+              showError('Error loading subtitles: ' + error.message);
+          }
+      }
+
+        // Convert SRT to ASS dialogue format
+        function srtToAssDialogue(srt) {
+            const lines = srt.trim().split('\n\n');
+            const dialogues = [];
+
+            for (const block of lines) {
+                const parts = block.split('\n');
+                if (parts.length < 3) continue;
+
+                const timeLine = parts[1];
+                const text = parts.slice(2).join(' ');
+
+                const [start, end] = timeLine.split(' --> ');
+
+                const [startTime, startMs] = start.split(',');
+                const [startH, startM, startS] = startTime.split(':');
+                const assStart = `${startH}:${startM}:${startS}.${startMs.substring(0, 2)}`;
+
+                const [endTime, endMs] = end.split(',');
+                const [endH, endM, endS] = endTime.split(':');
+                const assEnd = `${endH}:${endM}:${endS}.${endMs.substring(0, 2)}`;
+
+                dialogues.push(`Dialogue: 0,${assStart},${assEnd},Default,,0,0,0,,${text}`);
+            }
+
+            return dialogues.join('\n');
+        }
+
+        function hexToAssColor(hex) {
+            const r = parseInt(hex.substr(1, 2), 16);
+            const g = parseInt(hex.substr(3, 2), 16);
+            const b = parseInt(hex.substr(5, 2), 16);
+            return `&H00${b.toString(16).padStart(2, '0').toUpperCase()}${g.toString(16).padStart(2, '0').toUpperCase()}${r.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+
+        function createASSContent() {
+          const video = document.getElementById('videoPlayer');
+          const position = document.getElementById('positionSlider').value;
+          const fontSize = document.getElementById('fontSizeSlider').value;
+          const fontColor = document.getElementById('fontColorPicker').value;
+          const outlineColor = document.getElementById('outlineColorPicker').value;
+          const backColor = document.getElementById('backColorPicker').value;
+          const borderStyle = document.getElementById('borderStyleSelect').value;
+          const outline = document.getElementById('outlineSlider').value;
+          
+          // Get actual video dimensions
+          const videoWidth = video.videoWidth || 1920; // fallback to 1920
+          const videoHeight = video.videoHeight || 1080; // fallback to 1080
+          
+          // Convert colors to ASS format
+          const primaryColour = hexToAssColor(fontColor);
+          const outlineColour = hexToAssColor(outlineColor);
+          const backColour = hexToAssColor(backColor);
+          
+          // ASS Style variables
+          const fontname = 'Arial';
+          const bold = 0;
+          const italic = 0;
+          const underline = 0;
+          const strikeOut = 0;
+          const scaleX = 100;
+          const scaleY = 100;
+          const spacing = 0;
+          const angle = 0;
+          const alignment = 2;
+          const marginL = 10;
+          const marginR = 10;
+          const marginV = position;
+          const encoding = 1;
+          const shadow = 0;
+          const secondaryColour = '&H00000000';
+          
+          return `[Script Info]
+        Title: Demo Subtitles
+        ScriptType: v4.00+
+        WrapStyle: 0
+        PlayResX: ${videoWidth}
+        PlayResY: ${videoHeight}
+
+        [V4+ Styles]
+        Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+        Style: Default,${fontname},${fontSize},${primaryColour},${secondaryColour},${outlineColour},${backColour},${bold},${italic},${underline},${strikeOut},${scaleX},${scaleY},${spacing},${angle},${borderStyle},${outline},${shadow},${alignment},${marginL},${marginR},${marginV},${encoding}
+
+        [Events]
+        Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+        ${parsedDialogues}`;
+}
+
+        async function checkFileStatus(fileName) {
+            try {
+                // Include video name in check endpoint if available
+                const checkEndpoint = state.videoName
+                    ? `/api/captions/check/${fileName}?name=${encodeURIComponent(state.videoName)}`
+                    : `/api/captions/check/${fileName}`;
+                    
+                const response = await fetch(checkEndpoint);
+                if (!response.ok) {
+                    throw new Error(`Check failed: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                showError('Error checking file status: ' + error.message);
+                return { fileFound: false };
+            }
+        }
+
+        async function pollFileStatus(fileName) {
+            const exportButton = document.getElementById('exportButton');
+            exportButton.innerHTML = '<span class="spinner"></span> Processing...';
+            exportButton.classList.add('processing');
+            exportButton.disabled = true;
+
+            const checkInterval = setInterval(async () => {
+                const result = await checkFileStatus(fileName);
+                if (result.fileFound) {
+                    clearInterval(checkInterval);
+                    // Redirect to dl.html with video name parameter if available
+                    const redirectUrl = state.videoName 
+                        ? `/dl.html?name=${encodeURIComponent(state.videoName)}`
+                        : '/dl.html';
+                    window.location.href = redirectUrl;
+                }
+            }, 1000);
+        }
+
+        async function exportSubtitles() {
+            if (!parsedDialogues) {
+                showError('No subtitles to export');
+                return;
+            }
+
+            const videoName = state.videoName
+            const assString = createASSContent();
+
+            try {
+                // Include video name in create endpoint body
+                const requestBody = {
+                    name: videoName,
+                    ass: assString
+                };
+                
+                // If we have a video name from URL, you might want to include it as a separate field
+                if (state.videoName) {
+                    requestBody.videoName = state.videoName;
+                }
+
+                const response = await fetch('/api/captions/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Export failed: ${response.status}`);
+                }
+
+                showSuccess('Subtitles exported successfully. Processing video...');
+                pollFileStatus(videoName); // Start polling for file status
+            } catch (error) {
+                showError('Error exporting subtitles: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.getElementById('errorMessages').appendChild(errorDiv);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.getElementById('errorMessages').appendChild(successDiv);
+        }
+
+        function showWarning(message) {
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'warning-message';
+            warningDiv.textContent = message;
+            document.getElementById('errorMessages').appendChild(warningDiv);
+        }
+
+        // Start the app
+        loadVideo()
+    </script>
+</body>
+</html>

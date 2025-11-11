@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AuraCaptions - Create stunning, artistic video captions with holographic, liquid metal, and flame effects. Beyond traditional subtitles.">
+    <meta name="keywords" content="video captions, stylized subtitles, holographic text, video effects, caption editor, subtitle styling">
+    <meta name="author" content="AuraCaptions">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://auracaptions.com/">
+    <meta property="og:title" content="AuraCaptions - Artistic Video Captions">
+    <meta property="og:description" content="Create stunning, artistic video captions with holographic, liquid metal, and flame effects.">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AuraCaptions - Artistic Video Captions">
+    <meta name="twitter:description" content="Create stunning, artistic video captions with holographic, liquid metal, and flame effects.">
+    
+    <!-- Google Sign-In -->
+    <meta name="google-signin-client_id" content="672558205267-m1qr9fuh0dj2c4dh2ug4qn5fitor5b3v.apps.googleusercontent.com">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <title>AuraCaptions - Artistic Video Captions</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #f0f0f0, #fff);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .tagline {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        
+        .video-container {
+            margin: 1.5rem auto;
+            max-width: 280px;
+            max-height: 400px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .video-container video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .signin-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 1.5rem 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            background: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .tagline {
+                font-size: 1.2rem;
+            }
+            
+            .video-container {
+                margin: 1.5rem auto;
+            }
+            
+            .features {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+    
+    <script>
+        function handleCredentialResponse(response) {
+            // Show loading state
+            // Send the credential to your backend
+            fetch('/api/gauth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential: response.credential
+                })
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Authentication failed');
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Login successful:', data);
+                
+                // Redirect to captions page
+                setTimeout(() => {
+                    window.location.href = '/holo.html';
+                }, 1000);
+            })
+            .catch(error => {
+                statusMsg.textContent = 'Sign in failed. Please try again.';
+                console.error('Login error:', error);
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Stand Out with Gorgeous Captions</h1>
+        <p class="tagline"></p>
+        
+        <!-- Video Preview -->
+        <div class="video-container">
+            <video autoplay loop muted playsinline>
+                <source src="https://pub-d930c63077b24e93b1887ae7723a7db7.r2.dev/aura.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
+        <!-- Google Sign-In -->
+        <div class="signin-container">
+            <div id="g_id_onload"
+                 data-client_id="672558205267-m1qr9fuh0dj2c4dh2ug4qn5fitor5b3v.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse">
+            </div>
+            <div class="g_id_signin" 
+                 data-type="standard"
+                 data-size="large"
+                 data-theme="filled_blue"
+                 data-text="continue_with"
+                 data-shape="pill"
+                 data-logo_alignment="left">
+            </div>
+        </div>
+        
+        
+    </div>
+</body>
+</html>

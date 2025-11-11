@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TidyVid</title>
+    <style>
+        :root {
+            --bg-glass: rgba(255, 255, 255, 0.1);
+            --border-glass: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-right: 0.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .video-player-container {
+            margin-top: 2rem;
+            max-width: 800px;
+            width: 100%;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .video-wrapper {
+            position: relative;
+            background: black;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-player {
+            width: 100%;
+            max-height: 500px;
+            background: black;
+            display: block;
+        }
+
+        .video-info {
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .video-info h3 {
+            font-size: 1.2rem;
+        }
+
+        .controls-section {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .download-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .download-button:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .download-button:disabled {
+            background: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .download-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .error-message {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .loading-message {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .video-player-container {
+                padding: 1rem;
+            }
+
+            .download-button {
+                padding: 0.6rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+    <script defer data-domain="tidyvid.com" src="https://plausible.io/js/script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="TidyVid Logo">
+                <h2 class="logo-text">TidyVid</h2>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="loadingMessage" class="loading-message">Loading video...</div>
+            
+            <div class="video-player-container" id="videoPlayerContainer" style="display: none;">
+                <div class="video-info">
+                    <h3 id="videoTitle">Your Video</h3>
+                </div>
+                <div class="video-wrapper">
+                    <video class="video-player" id="videoPlayer" controls></video>
+                </div>
+                
+                <div class="controls-section">
+                    <button id="downloadButton" class="download-button">
+                        <svg class="download-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Download Video
+                    </button>
+                </div>
+            </div>
+            
+            <div id="errorMessages"></div>
+        </main>
+
+        <footer class="footer">
+            <span>support: </span>
+            <a href="mailto:hello@tidyvid.com?subject=TidyVid Support">hello@tidyvid.com</a>
+        </footer>
+    </div>
+
+    <script>
+        let videoUrl = '';
+        let nameParam = '';
+
+        // Get the name parameter from URL
+        function getNameParam() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('name') || '';
+        }
+
+        async function loadVideo() {
+            const loadingMessage = document.getElementById('loadingMessage');
+            const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            // Get the name parameter
+            nameParam = getNameParam();
+            
+            try {
+                // Build the URL with name parameter if it exists
+                let videoTokenUrl = '/api/captions/dl_token';
+                if (nameParam) {
+                    videoTokenUrl += `?name=${encodeURIComponent(nameParam)}`;
+                }
+                
+                // Fetch the presigned video URL
+                const response = await fetch(videoTokenUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch video: ${response.status}`);
+                }
+                
+                videoUrl = await response.json();
+                
+                // Set up video player
+                videoPlayer.src = videoUrl;
+                
+                // Hide loading message and show video player
+                loadingMessage.style.display = 'none';
+                videoPlayerContainer.style.display = 'block';
+                
+                // Update video title if name parameter exists
+                if (nameParam) {
+                    document.getElementById('videoTitle').textContent = decodeURIComponent(nameParam);
+                }
+                
+                // Set up download button
+                document.getElementById('downloadButton').addEventListener('click', downloadVideo);
+                
+            } catch (error) {
+                showError('Error loading video: ' + error.message);
+                loadingMessage.style.display = 'none';
+            }
+        }
+
+        async function downloadVideo() {
+            const downloadButton = document.getElementById('downloadButton');
+            
+            try {
+                downloadButton.disabled = true;
+                downloadButton.textContent = 'Preparing download...';
+                
+                // Try to fetch download token with name parameter
+                try {
+                    let dlTokenUrl = '/api/captions/dl_token' + `?name=${encodeURIComponent(nameParam)}`
+                    
+                    const response = await fetch(dlTokenUrl);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.token) {
+                            // Use the download endpoint with token
+                            let downloadUrl = `/api/captions/download?token=${data.token}`;
+                            // Optionally include name parameter in download URL as well
+                            if (nameParam) {
+                                downloadUrl += `&name=${encodeURIComponent(nameParam)}`;
+                            }
+                            window.location.href = downloadUrl;
+                            downloadButton.textContent = 'Download Video';
+                            downloadButton.disabled = false;
+                            return;
+                        }
+                    }
+                } catch (tokenError) {
+                    // If token endpoint fails, fall back to direct download
+                    console.log('Download token not available, using direct download');
+                }
+                
+                // Fallback: Direct download using the video URL
+                if (videoUrl) {
+                    // Create a temporary anchor element to trigger download
+                    const a = document.createElement('a');
+                    a.href = videoUrl;
+                    
+                    // Use name parameter as filename if available
+                    if (nameParam) {
+                        // Clean the name for use as a filename
+                        let filename = nameParam.replace(/[^a-z0-9_\-\.]/gi, '_');
+                        if (!filename.includes('.')) {
+                            filename += '.mp4';
+                        }
+                        console.log(filename)
+
+                        if (filename.includes('-')) {
+                            filename = filename.substring(filename.indexOf('-') + 1);
+                        }
+                        a.download = filename;
+                    }
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    downloadButton.innerHTML = `
+                        <svg class="download-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Download Video
+                    `;
+                    downloadButton.disabled = false;
+                } else {
+                    throw new Error('Video URL not available');
+                }
+                
+            } catch (error) {
+                showError('Error downloading video: ' + error.message);
+                downloadButton.innerHTML = `
+                    <svg class="download-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Download Video
+                `;
+                downloadButton.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.getElementById('errorMessages').appendChild(errorDiv);
+            
+            // Auto-remove error after 5 seconds
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // Load the video when the page loads
+        window.addEventListener('DOMContentLoaded', loadVideo);
+    </script>
+</body>
+</html>

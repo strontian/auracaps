@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TidyVid</title>
+    <style>
+        /* Original CSS remains unchanged */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-right: 0.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .welcome-text {
+            max-width: 400px;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .upload-area {
+            border: 2px dashed #9ca3af;
+            border-radius: 12px;
+            padding: 4rem 6rem;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            color: white;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .upload-area:hover {
+            border-color: #6366f1;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .upload-area.dragover {
+            border-color: #4f46e5;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-link {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .upload-info {
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            opacity: 0.8;
+        }
+
+        .processing-container {
+            margin-top: 2rem;
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 2rem;
+            display: none;
+            text-align: center;
+            color: white;
+        }
+
+        .processing-container.show {
+            display: block;
+        }
+
+        .processing-status {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #60a5fa;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .error-message {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .success-message {
+            color: #86efac;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .download-button {
+            background: #60a5fa;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background 0.2s;
+        }
+
+        .download-button:hover {
+            background: #3b82f6;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        #file_upload {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .upload-area {
+                padding: 2rem 3rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="TidyVid Logo">
+                <h2 class="logo-text">TidyVid</h2>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="uploadSection">
+                <p class="welcome-text">
+                    Welcome to TidyVid! 👋 Upload a video to extract and download its audio.
+                </p>
+                
+                <input type="file" id="file_upload" accept="video/*">
+                <label for="file_upload">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-text">Drag Your Video Here!</div>
+                        <div class="upload-link">or click to select a file</div>
+                        <div class="upload-info">Audio will be extracted automatically</div>
+                    </div>
+                </label>
+
+                <div id="errorMessages"></div>
+            </div>
+
+            <div class="processing-container" id="processingContainer">
+                <div class="processing-status" id="processingStatus">Processing...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0%</div>
+                <div id="statusMessages"></div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <span>support: </span>
+            <a href="mailto:hello@tidyvid.com?subject=TidyVid Support">hello@tidyvid.com</a>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { Input, Output, Conversion, ALL_FORMATS, Mp4OutputFormat, BufferTarget, BlobSource } from './mediabunny.min.mjs';
+
+        const MAX_FILE_SIZE = 4.8 * 1024 * 1024 * 1024;
+
+        function initializeApp() {
+            initializeEventHandlers();
+        }
+
+        function initializeEventHandlers() {
+            const fileInput = document.getElementById('file_upload');
+            const uploadArea = document.getElementById('uploadArea');
+
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('video')) {
+                    processFile(files[0]);
+                }
+            });
+        }
+
+        async function processFile(file) {
+            console.log("Processing file:", file.name);
+            
+            clearMessages();
+
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File size exceeds the maximum limit of 4.8GB');
+                return;
+            }
+
+            if (!file.type.startsWith('video')) {
+                showError('Please upload a video file');
+                return;
+            }
+
+            showProcessing('Extracting audio with Mediabunny...');
+
+            try {
+                const input = new Input({
+                    formats: ALL_FORMATS,
+                    source: new BlobSource(file),
+                });
+
+                const target = new BufferTarget();
+                const output = new Output({
+                    format: new Mp4OutputFormat(),
+                    target: target,
+                });
+
+                const conversion = await Conversion.init({
+                    input,
+                    output,
+                    video: { discard: true },  // Discard video track to extract audio only
+                    audio: {},  // Keep audio as is; add options like codec or bitrate if needed
+                });
+
+                if (!conversion.isValid) {
+                    throw new Error('Invalid conversion: ' + conversion.discardedTracks);
+                }
+
+                await conversion.execute({
+                    onProgress: (progress) => {
+                        updateProgress(progress * 100, `Extracting audio... ${Math.round(progress * 100)}%`);
+                    }
+                });
+
+                const audioBuffer = target.buffer;
+                const audioBlob = new Blob([audioBuffer], { type: 'audio/mp4' });
+                
+                const audioFileName = file.name.replace(/\.[^/.]+$/, '') + '.m4a';  // Use .m4a for audio MP4
+                downloadAudio(audioBlob, audioFileName);
+                
+                showSuccess('Audio extracted successfully! Download started.');
+                setTimeout(() => {
+                    resetUpload();
+                }, 3000);
+            } catch (error) {
+                console.error('Processing error:', error);
+                showError('Error processing video: ' + error.message);
+            }
+        }
+
+        function downloadAudio(audioBlob, fileName) {
+            const url = URL.createObjectURL(audioBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showProcessing(message) {
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('processingContainer').classList.add('show');
+            document.getElementById('processingStatus').textContent = message;
+        }
+
+        function updateProgress(percent, message) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+            if (message) {
+                document.getElementById('processingStatus').textContent = message;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            
+            const container = document.getElementById('processingContainer').classList.contains('show') 
+                ? document.getElementById('statusMessages')
+                : document.getElementById('errorMessages');
+            
+            container.appendChild(errorDiv);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.getElementById('statusMessages').appendChild(successDiv);
+        }
+
+        function clearMessages() {
+            document.getElementById('errorMessages').innerHTML = '';
+            document.getElementById('statusMessages').innerHTML = '';
+        }
+
+        function resetUpload() {
+            document.getElementById('processingContainer').classList.remove('show');
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            clearMessages();
+            document.getElementById('file_upload').value = '';
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
