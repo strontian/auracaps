@@ -149,13 +149,13 @@
   <div id="controls">
     <div class="control-group">
       <label for="fontSize">Font Size:</label>
-      <input type="range" id="fontSize" min="16" max="96" value="48" step="1">
+      <input type="range" id="fontSize" min="36" max="96" value="48" step="1">
       <span class="value-display" id="fontSizeValue">48px</span>
     </div>
     <div class="control-group">
       <label for="textHeight">Text Height:</label>
-      <input type="range" id="textHeight" min="0" max="100" value="15" step="1">
-      <span class="value-display" id="textHeightValue">15%</span>
+      <input type="range" id="textHeight" min="0" max="100" value="7" step="1">
+      <span class="value-display" id="textHeightValue">7%</span>
     </div>
     <div class="control-group">
       <button id="exportBtn">Export Video</button>
@@ -178,7 +178,7 @@
     let holoImage = null;
     let subtitles = [];
     let fontSize = 48;
-    let textHeightPercent = 15;
+    let textHeightPercent = 7;
     let animationFrameId = null;
     let videoName = 'original.mp4';
 
@@ -344,21 +344,6 @@
       const invertedPercent = 100 - textHeightPercent;
       const startY = (textVerticalRange * invertedPercent / 100) + fontSize * 1.6;
       
-      // Draw black border/outline around text
-      ctx.save();
-      ctx.font = `${fontSize}px Modak`;
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 4;
-      ctx.lineJoin = 'round';
-      
-      lines.forEach((line, i) => {
-        const lineWidth = ctx.measureText(line).width;
-        const lineX = (canvas.width - lineWidth) / 2;
-        const lineY = startY + i * lineHeight;
-        ctx.strokeText(line, lineX, lineY);
-      });
-      ctx.restore();
-      
       ctx.save();
       ctx.font = `${fontSize}px Modak`;
       
@@ -405,16 +390,23 @@
           holoImage.src = '/holo.jpg';
         });
 
-        // Load SRT file
-        const srtResponse = await fetch('/transcript.srt');
-        const srtContent = await srtResponse.text();
-        subtitles = parseSRT(srtContent);
 
         // Get video token and load video
-        const tokenResponse = await fetch('/api/captions/video_token?name=original.mp4');
+        const urlParams = new URLSearchParams(window.location.search)
+        const videoName = urlParams.get('name')
+        const srtResponse = await fetch(`/api/captions/transcript/?name=${encodeURIComponent(videoName)}`);
+        
+        // Load SRT file
+        const srtContent = await srtResponse.json();
+        console.log(srtContent)
+        subtitles = parseSRT(srtContent);
+
+        
+        const tokenResponse = await fetch(`/api/captions/video_token?name=${encodeURIComponent(videoName)}`)
         const tokenData = await tokenResponse.json();
         video.src = tokenData
         
+
         // Inside init(), after video.onloadedmetadata
         await new Promise((resolve) => {
           video.onloadedmetadata = () => {

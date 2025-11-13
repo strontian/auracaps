@@ -6,7 +6,7 @@ const oauthClient = new OAuth2Client()
 export async function verify(token) {
   const ticket = await oauthClient.verifyIdToken({
       idToken: token,
-      audience: GOOGLE_CLIENT_ID,
+      audience: process.env.GOOGLE_CLIENT_ID,
   })
   const payload = ticket.getPayload()
   return { email: payload.email, accountId: payload.sub, name: payload.name }
