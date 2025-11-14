@@ -25,6 +25,7 @@
     "@google-cloud/local-auth": "^2.1.0",
     "@google-cloud/run": "^1.2.0",
     "@google-cloud/scheduler": "^4.0.1",
+    "canvas": "^3.2.0",
     "connect-pg-simple": "^9.0.1",
     "dotenv": "^17.2.3",
     "dropbox": "^10.34.0",

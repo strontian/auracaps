@@ -180,7 +180,9 @@
     let fontSize = 48;
     let textHeightPercent = 7;
     let animationFrameId = null;
-    let videoName = 'original.mp4';
+    const urlParams = new URLSearchParams(window.location.search)
+    let videoName = urlParams.get('name')
+
 
     // Update font size
     fontSizeInput.addEventListener('input', (e) => {
