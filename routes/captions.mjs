@@ -6,7 +6,7 @@ import { srt } from "@deepgram/captions";
 import { promises as fs } from 'fs'
 import { uploadFile, downloadFile, getViewUrl, checkFileExists } from '..//services/r2_new.mjs'
 import { execFile } from 'child_process'
-
+import ffprobePath from 'ffprobe-static'
 
 import ffmpegPath from 'ffmpeg-static'
 import crypto from 'crypto'
@@ -198,6 +198,8 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
   // Download original video and SRT from database
   await downloadFile('tv-captions', fileNames.original, localInputFile)
   
+  const videoInfo = await probeVideo(localInputFile);
+
   // Get SRT from database
   const query = 'select srt from transcripts where account_id=$1 and file_name=$2'
   const captions = await pool.query(query, [accountId, displayName])
@@ -205,7 +207,6 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
   
   // Get video metadata (duration) - you may need to get this from your database or probe the video
   // For now, using a default or you can add ffprobe to get actual duration
-  const duration = 57 // TODO: Get actual duration
   
   // Generate holographic captions
   await generateHolographicCaptions({
@@ -216,7 +217,9 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
     fontSize: fontSize || 80,
     textHeightPercent: textHeightPercent || 50,
     framesDir: framesDir,
-    duration: duration
+    width: videoInfo.width,
+    height: videoInfo.height,
+    duration: videoInfo.duration
   })
   
   // Upload finished video
@@ -230,6 +233,32 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
   await fs.rm(framesDir, { recursive: true, force: true })
 }
 
+// Probe video to get dimensions and duration
+async function probeVideo(videoPath) {
+  return new Promise((resolve, reject) => {
+    execFile(ffprobePath.path, [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height,duration',
+      '-of', 'json',
+      videoPath
+    ], (error, stdout, stderr) => {
+      if (error) {
+        console.error('FFprobe error:', stderr);
+        reject(error);
+      } else {
+        const data = JSON.parse(stdout);
+        const stream = data.streams[0];
+        resolve({
+          width: stream.width,
+          height: stream.height,
+          duration: parseFloat(stream.duration)
+        });
+      }
+    });
+  });
+}
+
 // Modified generateHolographicCaptions to use ffmpeg-static and custom frames directory
 export async function generateHolographicCaptions({
   videoPath,
@@ -238,10 +267,10 @@ export async function generateHolographicCaptions({
   outputPath = 'output.mp4',
   fontSize = 80,
   textHeightPercent = 50,
-  width = 720,
-  height = 1280,
+  width,
+  height,
   fps = 30,
-  duration = 57,
+  duration,
   framesDir = 'frames'
 }) {
   const totalFrames = duration * fps;
