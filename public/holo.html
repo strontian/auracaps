@@ -206,44 +206,43 @@
 
     // Export video button handler
     exportBtn.addEventListener('click', async () => {
-      exportBtn.disabled = true;
-      exportStatus.textContent = 'Exporting...';
-      exportStatus.style.color = '#fff';
+    exportBtn.disabled = true;
+    exportStatus.textContent = 'Exporting...';
+    exportStatus.style.color = '#fff';
 
-      try {
-        const response = await fetch('/api/captions/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            videoName: videoName,
-            fontSize: fontSize,
-            textPosition: textHeightPercent
-          })
-        });
+    try {
+      const response = await fetch('/api/captions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          videoName: videoName,
+          fontSize: fontSize,
+          textPosition: textHeightPercent
+        })
+      });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        exportStatus.textContent = 'Export successful!';
-        exportStatus.style.color = '#0f0';
-        console.log('Export result:', result);
-        
-        // Reset status after 3 seconds
-        setTimeout(() => {
-          exportStatus.textContent = '';
-          exportBtn.disabled = false;
-        }, 3000);
-      } catch (error) {
-        console.error('Export error:', error);
-        exportStatus.textContent = 'Export failed: ' + error.message;
-        exportStatus.style.color = '#f00';
-        exportBtn.disabled = false;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    });
+
+      const result = await response.json();
+      exportStatus.textContent = 'Export successful! Redirecting...';
+      exportStatus.style.color = '#0f0';
+      console.log('Export result:', result);
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        window.location.href = `/download.html?name=${encodeURIComponent(videoName)}`;
+      }, 1000);
+    } catch (error) {
+      console.error('Export error:', error);
+      exportStatus.textContent = 'Export failed: ' + error.message;
+      exportStatus.style.color = '#f00';
+      exportBtn.disabled = false;
+    }
+  });
 
     // Parse SRT format
     function parseSRT(content) {
