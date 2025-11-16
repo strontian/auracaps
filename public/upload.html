@@ -482,12 +482,7 @@
                 
                 const data = await response.json();
                 showMessage('Video and audio uploaded, transcription started successfully! Redirecting...', 'success');
-                
-                // Redirect to captions page with video name after a short delay
-                setTimeout(() => {
-                    window.location.href = `/holo.html?name=${encodeURIComponent(fileName)}`;
-                }, 1500);
-                
+                window.location.href = `/holo.html?name=${encodeURIComponent(fileName)}`;                
             } catch (error) {
                 console.error(`[UploadCompletionError] ${error.message} - ${fileName}`);
                 showMessage('Error starting transcription: ' + error.message, 'error');

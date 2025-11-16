@@ -48,7 +48,7 @@
         }
         
         h1 {
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 1rem;
             background: linear-gradient(45deg, #fff, #f0f0f0, #fff);
@@ -74,7 +74,7 @@
         .video-container {
             margin: 1.5rem auto;
             max-width: 280px;
-            max-height: 400px;
+            max-height: 640px;
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -154,11 +154,7 @@
             })
             .then(data => {
                 console.log('Login successful:', data);
-                
-                // Redirect to captions page
-                setTimeout(() => {
-                    window.location.href = '/upload.html';
-                }, 1000);
+                window.location.href = '/upload.html';
             })
             .catch(error => {
                 statusMsg.textContent = 'Sign in failed. Please try again.';
@@ -169,13 +165,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>Stand Out with Gorgeous Captions</h1>
+        <h1>Aura Captions</h1>
         <p class="tagline"></p>
         
         <!-- Video Preview -->
         <div class="video-container">
             <video autoplay loop muted playsinline>
-                <source src="https://pub-d930c63077b24e93b1887ae7723a7db7.r2.dev/aura.mp4" type="video/mp4">
+                <source src="https://pub-d930c63077b24e93b1887ae7723a7db7.r2.dev/aura2.mov" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         </div>

@@ -171,8 +171,8 @@ router.post('/captions/create', async (req, res) => {
   }
   
   try {
-    await generateHolographicCaptionsForVideo(accountId, videoName, fontSize, textPosition)
     res.status(200).json({})
+    await generateHolographicCaptionsForVideo(accountId, videoName, fontSize, textPosition)
   } catch (error) {
     console.error('Caption generation error:', error)
     res.status(500).json({ error: 'Failed to generate captions' })
@@ -437,6 +437,7 @@ router.post('/video_upload_token', (req, res) => {
 router.get('/captions/check/:fileName', async (req, res) => {
   try {
     let fileName = req.params.fileName
+    //let accountId = '101967346386369497929' 
     let accountId = req.session.accountId
     if(!accountId || !fileName) {
       return res.status(401).json({ error: 'Unauthorized' })
