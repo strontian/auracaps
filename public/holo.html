@@ -13,7 +13,7 @@
   <style>
     @font-face {
       font-family: 'Modak';
-      src: url('/Modak-Regular.ttf') format('truetype');
+      src: url('/fonts/Modak-Regular.ttf') format('truetype');
     }
 
     * {
@@ -703,7 +703,7 @@
         await new Promise((resolve, reject) => {
           holoImage.onload = resolve;
           holoImage.onerror = reject;
-          holoImage.src = '/holo.jpg';
+          holoImage.src = '/images/holo.jpg';
         });
 
         // Load rainbow image
@@ -712,7 +712,7 @@
         await new Promise((resolve, reject) => {
           rainbowImage.onload = resolve;
           rainbowImage.onerror = reject;
-          rainbowImage.src = '/rainbow.jpg';
+          rainbowImage.src = '/images/rainbow.jpg';
         });
 
         // Set initial style image

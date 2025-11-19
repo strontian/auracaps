@@ -34,7 +34,7 @@ import { createCanvas, loadImage, registerFont } from 'canvas';
 import { execSync } from 'child_process';
 
 // Register the font
-registerFont('public/Modak-Regular.ttf', { family: 'Modak' });
+registerFont('public/fonts/Modak-Regular.ttf', { family: 'Modak' });
 
 // Parse SRT file
 async function parseSRT(filepath) {
@@ -192,7 +192,7 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
   const localInputFile = acctDir + generateRandomName() + fileNames.extension
   const srtFile = acctDir + generateRandomName() + ".srt"
   const localFinishedPath = acctDir + generateRandomName() + fileNames.extension
-  const holoImagePath = 'public/holo.jpg' // You may need to adjust this path
+  const holoImagePath = 'public/images/holo.jpg'
   const framesDir = acctDir + 'frames'
   
   // Download original video and SRT from database
