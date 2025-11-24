@@ -600,13 +600,6 @@
         return;
       }
       
-      // Animation: 10s cycle
-      const animDuration = 100;
-      const progress = (timestamp % (animDuration * 2)) / animDuration;
-      const yDir = progress <= 1 ? progress : 2 - progress;
-      const bgSize = canvas.height * 5;
-      const bgY = yDir * (bgSize - canvas.height);
-      
       // Word wrapping
       const padding = 50;
       const maxWidth = canvas.width - (padding * 2) - 40;
@@ -640,6 +633,14 @@
       });
 
       // Draw holo image to main canvas (preserving aspect ratio with animation)
+
+      // Animation: 10s cycle
+      const animDuration = 100;
+      const progress = (timestamp % (animDuration * 2)) / animDuration;
+      const yDir = progress <= 1 ? progress : 2 - progress;
+      const bgSize = canvas.height * 5;
+      const bgY = yDir * (bgSize - canvas.height);
+      
       const imgAspect = currentStyleImage.width / currentStyleImage.height;
       const canvasAspect = canvas.width / canvas.height;
 
@@ -738,6 +739,25 @@
             // Match canvas to video dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            
+            // Calculate dynamic font size range based on the SHORTER dimension
+            // This ensures proper sizing for both horizontal and vertical videos
+            const shorterDimension = Math.min(canvas.width, canvas.height);
+            const minFontSize = Math.round(shorterDimension / 20);  // shorter / 20
+            const maxFontSize = Math.round(shorterDimension / 10);  // shorter / 10
+            
+            // Update slider attributes
+            fontSizeInput.min = minFontSize;
+            fontSizeInput.max = maxFontSize;
+            
+            // Set initial font size to middle of range
+            const defaultFontSize = Math.round((minFontSize + maxFontSize) / 2);
+            fontSizeInput.value = defaultFontSize;
+            fontSize = defaultFontSize;
+            fontSizeValue.textContent = fontSize + 'px';
+            
+            console.log(`Video: ${canvas.width}x${canvas.height}, Font range: ${minFontSize}-${maxFontSize}px (based on ${shorterDimension}px)`);
+            
             resolve();
           };
         });

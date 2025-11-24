@@ -17,6 +17,8 @@ app.use((req, res, next) => {
 app.use('/dash', express.static(path.join(__dirname, 'tv-dash/dist')))
 
 app.use(express.static('public'))
+app.use(express.static('public/experiments'))
+
 
 app.use('/ffmpeg', express.static(path.join(__dirname, 'node_modules/@ffmpeg')))
 
