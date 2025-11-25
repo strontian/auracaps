@@ -386,7 +386,9 @@
       <a href="mailto:hello@auracaptions.com?subject=Aura Support">hello@auracaptions.com</a>
     </footer>
   </div>
-<script>
+<script type="module">
+    import { renderHolographicEffect } from './effects.mjs';
+
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -410,6 +412,13 @@
     const urlParams = new URLSearchParams(window.location.search)
     let videoName = urlParams.get('name')
 
+    // Browser-compatible canvas factory
+    function createCanvas(width, height) {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      return tempCanvas;
+    }
 
     // Update style selection
     styleSelect.addEventListener('change', (e) => {
@@ -420,7 +429,6 @@
         renderSingleFrame();
       }
     });
-
 
     // Update font size
     fontSizeInput.addEventListener('input', (e) => {
@@ -555,39 +563,6 @@
       return null;
     }
 
-    // Word wrap text
-    function wrapText(text, maxWidth) {
-      ctx.font = `${fontSize}px Modak`;
-      
-      const paragraphs = text.split('\n');
-      const allLines = [];
-      
-      for (const paragraph of paragraphs) {
-        if (!paragraph.trim()) continue;
-        
-        const words = paragraph.split(' ');
-        let currentLine = '';
-        
-        for (const word of words) {
-          const testLine = currentLine ? `${currentLine} ${word}` : word;
-          const metrics = ctx.measureText(testLine);
-          
-          if (metrics.width > maxWidth && currentLine) {
-            allLines.push(currentLine);
-            currentLine = word;
-          } else {
-            currentLine = testLine;
-          }
-        }
-        
-        if (currentLine) {
-          allLines.push(currentLine);
-        }
-      }
-      
-      return allLines;
-    }
-
     // Render a single frame (for when video is paused)
     function renderSingleFrame() {
       const timestamp = video.currentTime;
@@ -600,93 +575,17 @@
         return;
       }
       
-      // Word wrapping
-      const padding = 50;
-      const maxWidth = canvas.width - (padding * 2) - 40;
-      const lines = wrapText(text, maxWidth);
-      
-      const lineHeight = fontSize * 1.2;
-      const totalTextHeight = lines.length * lineHeight;
-      
-      // Calculate Y position (INVERTED: 100% = top, 0% = bottom)
-      const textVerticalRange = canvas.height - totalTextHeight - fontSize * 0.8;
-      const invertedPercent = 100 - textHeightPercent;
-      const startY = (textVerticalRange * invertedPercent / 100) + fontSize * 1.6;
-      
-      ctx.save();
-      ctx.font = `${fontSize}px Modak`;
-      
-      // Draw holo image
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-
-      // Draw ALL text to temp canvas
-      tempCtx.font = `${fontSize}px Modak`;
-      tempCtx.fillStyle = '#ffffff';
-      lines.forEach((line, i) => {
-        const lineWidth = tempCtx.measureText(line).width;
-        const lineX = (canvas.width - lineWidth) / 2;
-        const lineY = startY + i * lineHeight;
-        tempCtx.fillText(line, lineX, lineY);
+      // Use shared rendering function
+      renderHolographicEffect(ctx, {
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        text: text,
+        styleImage: currentStyleImage,
+        timestamp: timestamp,
+        fontSize: fontSize,
+        textHeightPercent: textHeightPercent,
+        createCanvas: createCanvas
       });
-
-      // Draw holo image to main canvas (preserving aspect ratio with animation)
-
-      // Animation: 10s cycle
-      const animDuration = 100;
-      const progress = (timestamp % (animDuration * 2)) / animDuration;
-      const yDir = progress <= 1 ? progress : 2 - progress;
-      const bgSize = canvas.height * 5;
-      const bgY = yDir * (bgSize - canvas.height);
-      
-      const imgAspect = currentStyleImage.width / currentStyleImage.height;
-      const canvasAspect = canvas.width / canvas.height;
-
-      const animScrollHeight = canvas.height * 5;
-      let drawWidth, drawHeight, drawX, drawY;
-
-      if (imgAspect > canvasAspect) {
-        // Image is wider - fit to height
-        drawHeight = animScrollHeight;
-        drawWidth = drawHeight * imgAspect;
-        drawX = (canvas.width - drawWidth) / 2;
-        drawY = -bgY;
-      } else {
-        // Image is taller - fit to width  
-        drawWidth = canvas.width;
-        drawHeight = drawWidth / imgAspect;
-        drawX = 0;
-        drawY = -bgY;
-      }
-
-      ctx.drawImage(currentStyleImage, drawX, drawY, drawWidth, drawHeight);
-      
-      ctx.save();
-      ctx.font = `${fontSize}px Modak`;
-
-      // Set up the stroke (border)
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 4;
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 2;
-
-      lines.forEach((line, i) => {
-        const lineWidth = ctx.measureText(line).width;
-        const lineX = (canvas.width - lineWidth) / 2;
-        const lineY = startY + i * lineHeight;
-        
-        // Draw stroke first
-        ctx.strokeText(line, lineX, lineY);
-      });
-
-      ctx.restore();
-
-      // Apply the combined text mask in ONE operation
-      ctx.globalCompositeOperation = 'destination-in';
-      ctx.drawImage(tempCanvas, 0, 0);
-      ctx.restore();
     }
 
     // Render frame (for animation loop)
@@ -755,8 +654,6 @@
             fontSizeInput.value = defaultFontSize;
             fontSize = defaultFontSize;
             fontSizeValue.textContent = fontSize + 'px';
-            
-            console.log(`Video: ${canvas.width}x${canvas.height}, Font range: ${minFontSize}-${maxFontSize}px (based on ${shorterDimension}px)`);
             
             resolve();
           };
