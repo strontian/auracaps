@@ -16,6 +16,11 @@
       src: url('/fonts/Modak-Regular.ttf') format('truetype');
     }
 
+    @font-face {
+      font-family: 'Tinos';
+      src: url('/fonts/Tinos-Regular.ttf') format('truetype');
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -359,6 +364,7 @@
           <select id="styleSelect">
             <option value="holographic">Holographic</option>
             <option value="rainbow">Rainbow</option>
+            <option value="led">LED</option>
           </select>
         </div>
         
@@ -387,7 +393,7 @@
     </footer>
   </div>
 <script type="module">
-    import { renderHolographicEffect } from './effects.mjs';
+    import { renderHolographicEffect, detectLEDDots, renderLEDEffect } from './effects.mjs';
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -401,6 +407,10 @@
     const exportBtn = document.getElementById('exportBtn');
     const exportStatus = document.getElementById('exportStatus');
 
+    // Scratchpad variables
+    let auxCanvas = null;
+    let auxCtx = null;
+
     let holoImage = null;
     let rainbowImage = null;
     let currentStyleImage = null;
@@ -409,21 +419,28 @@
     let fontSize = 48;
     let textHeightPercent = 7;
     let animationFrameId = null;
+    let ledDots = null;
+    let lastLEDText = null;
     const urlParams = new URLSearchParams(window.location.search)
     let videoName = urlParams.get('name')
-
-    // Browser-compatible canvas factory
-    function createCanvas(width, height) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      return tempCanvas;
-    }
 
     // Update style selection
     styleSelect.addEventListener('change', (e) => {
       currentStyle = e.target.value;
-      currentStyleImage = currentStyle === 'holographic' ? holoImage : rainbowImage;
+      
+      // Update current style image for holographic/rainbow
+      if (currentStyle === 'holographic') {
+        currentStyleImage = holoImage;
+      } else if (currentStyle === 'rainbow') {
+        currentStyleImage = rainbowImage;
+      }
+      
+      // Reset LED dots when switching to/from LED style
+      if (currentStyle === 'led') {
+        lastLEDText = null;
+        ledDots = null;
+      }
+      
       // Render immediately if video is paused
       if (video.paused && !animationFrameId) {
         renderSingleFrame();
@@ -434,6 +451,13 @@
     fontSizeInput.addEventListener('input', (e) => {
       fontSize = parseInt(e.target.value);
       fontSizeValue.textContent = fontSize + 'px';
+      
+      // Reset LED dots on font size change
+      if (currentStyle === 'led') {
+        lastLEDText = null;
+        ledDots = null;
+      }
+      
       // Render immediately if video is paused
       if (video.paused && !animationFrameId) {
         renderSingleFrame();
@@ -444,6 +468,13 @@
     textHeightInput.addEventListener('input', (e) => {
       textHeightPercent = parseInt(e.target.value);
       textHeightValue.textContent = textHeightPercent + '%';
+      
+      // Reset LED dots on position change
+      if (currentStyle === 'led') {
+        lastLEDText = null;
+        ledDots = null;
+      }
+      
       // Render immediately if video is paused
       if (video.paused && !animationFrameId) {
         renderSingleFrame();
@@ -571,21 +602,45 @@
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      if (!text || !currentStyleImage) {
+      if (!text) {
         return;
       }
       
-      // Use shared rendering function
-      renderHolographicEffect(ctx, {
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
-        text: text,
-        styleImage: currentStyleImage,
-        timestamp: timestamp,
-        fontSize: fontSize,
-        textHeightPercent: textHeightPercent,
-        createCanvas: createCanvas
-      });
+      // LED style rendering
+      if (currentStyle === 'led') {
+        // Detect dots if text changed or not yet detected
+        // Note: We use auxCtx here instead of creating a new canvas
+        if (text !== lastLEDText || !ledDots) {
+          ledDots = detectLEDDots({
+            text: text,
+            fontSize: fontSize,
+            textHeightPercent: textHeightPercent,
+            squareSize: 8,
+            auxCtx: auxCtx // <--- INJECTED SCRATCHPAD
+          });
+          lastLEDText = text;
+        }
+        
+        // Render LED dots
+        if (ledDots && ledDots.length > 0) {
+          renderLEDEffect(ctx, {
+            dots: ledDots,
+            fontSize: fontSize,
+            squareSize: 8
+          });
+        }
+      } 
+      // Holographic/Rainbow style rendering
+      else if (currentStyleImage) {
+        renderHolographicEffect(ctx, {
+          text: text,
+          styleImage: currentStyleImage,
+          timestamp: timestamp,
+          fontSize: fontSize,
+          textHeightPercent: textHeightPercent
+          // Removed createCanvas
+        });
+      }
     }
 
     // Render frame (for animation loop)
@@ -638,6 +693,12 @@
             // Match canvas to video dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            
+            // --- INITIALIZE SCRATCHPAD ONCE ---
+            auxCanvas = document.createElement('canvas');
+            auxCanvas.width = video.videoWidth;
+            auxCanvas.height = video.videoHeight;
+            auxCtx = auxCanvas.getContext('2d');
             
             // Calculate dynamic font size range based on the SHORTER dimension
             // This ensures proper sizing for both horizontal and vertical videos

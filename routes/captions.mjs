@@ -7,7 +7,7 @@ import { promises as fs } from 'fs'
 import { uploadFile, downloadFile, getViewUrl, checkFileExists } from '..//services/r2_new.mjs'
 import { execFile } from 'child_process'
 import ffprobePath from 'ffprobe-static'
-import { generateHolographicCaptions } from '../../node-ffmpeg-demo/caption_ffmpeg.mjs'; // Adjust path to where you save the 2nd file
+import { generateStyledCaptions } from '../../node-ffmpeg-demo/caption_ffmpeg.mjs'; // Adjust path to where you save the 2nd file
 
 import crypto from 'crypto'
 
@@ -36,7 +36,7 @@ const router = express.Router()
 router.post('/captions/create', async (req, res) => {
   console.log(req.body)
   const accountId = req.session.accountId
-  const { videoName, fontSize, textPosition } = req.body
+  const { videoName, fontSize, textPosition, style } = req.body
   
   if(!accountId || !videoName) {
     return res.status(401).json({ error: 'Unauthorized' })
@@ -44,14 +44,14 @@ router.post('/captions/create', async (req, res) => {
   
   try {
     res.status(200).json({})
-    await generateHolographicCaptionsForVideo(accountId, videoName, fontSize, textPosition)
+    await generateHolographicCaptionsForVideo(accountId, videoName, fontSize, textPosition, style)
   } catch (error) {
     console.error('Caption generation error:', error)
     res.status(500).json({ error: 'Failed to generate captions' })
   }
 })
 
-async function generateHolographicCaptionsForVideo(accountId, displayName, fontSize, textHeightPercent) {
+async function generateHolographicCaptionsForVideo(accountId, displayName, fontSize, textHeightPercent, style) {
   const workdir = "work";
   const acctDir = `${workdir}/${accountId}/`;
   
@@ -87,7 +87,7 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
     
     // 4. Generate holographic captions
     // We pass the metadata we probed so the canvas matches the video exactly
-    await generateHolographicCaptions({
+    await generateStyledCaptions({
       videoPath: localInputFile,
       srtPath: srtFile,
       holoImagePath: holoImagePath,
@@ -96,6 +96,7 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
       textHeightPercent: textHeightPercent || 50,
       width: videoInfo.width,
       height: videoInfo.height,
+      captionStyle: style,
       duration: videoInfo.duration,
       fps: videoInfo.fps || 30 // Default to 30 if probe doesn't catch it
     });

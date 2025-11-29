@@ -53,7 +53,6 @@ export function wrapText(ctx, text, maxWidth, fontFamily, fontSize) {
  * @returns {{ startY: number, lineHeight: number, padding: number, maxWidth: number }}
  */
 export function calculateTextPosition(canvasWidth, canvasHeight, lineCount, fontSize, textHeightPercent) {
-  // This function is simple and fast, so we won't log it.
   const padding = 50;
   const maxWidth = canvasWidth - (padding * 2) - 40;
   const lineHeight = fontSize * 1.2;
@@ -68,26 +67,18 @@ export function calculateTextPosition(canvasWidth, canvasHeight, lineCount, font
 }
 
 /**
- * Render holographic/rainbow text effect
+ * Render holographic/rainbow text effect (Optimized 'source-in' method)
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} opts
- * @param {number} opts.canvasWidth
- * @param {number} opts.canvasHeight
  * @param {string} opts.text
  * @param {HTMLImageElement|Image} opts.styleImage - The holographic or rainbow texture
  * @param {number} opts.timestamp - Current time in seconds
  * @param {number} opts.fontSize
  * @param {number} opts.textHeightPercent
- * @param {function} opts.createCanvas - Factory function to create temp canvas (for cross-platform)
- */
-/**
- * Render holographic/rainbow text effect (Optimized 'source-in' method)
  */
 export function renderHolographicEffect(ctx, opts) {
   
   const {
-    canvasWidth,
-    canvasHeight,
     text,
     styleImage,
     timestamp,
@@ -95,6 +86,9 @@ export function renderHolographicEffect(ctx, opts) {
     textHeightPercent
   } = opts;
   
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+
   const fontFamily = 'Modak';
   
   // 1. Calculate Layout
@@ -191,69 +185,62 @@ export function renderHolographicEffect(ctx, opts) {
   });
 
   ctx.restore();
-  
 }
 
 /**
- * LED effect state management
- * Call detectLEDDots when text changes, then renderLEDDots each frame
- */
-
-/**
  * Detect LED dot positions from text
- * @param {object} opts
- * @param {number} opts.canvasWidth
- * @param {number} opts.canvasHeight
+ * Uses an injected scratchpad context (auxCtx) to avoid memory thrashing.
+ * * @param {object} opts
  * @param {string} opts.text
  * @param {number} opts.fontSize
  * @param {number} opts.textHeightPercent
  * @param {number} opts.squareSize - Grid size for dot detection (default 8)
- * @param {function} opts.createCanvas
+ * @param {CanvasRenderingContext2D} opts.auxCtx - REUSABLE Scratchpad Context
  * @returns {Array} Array of dot objects with position and animation state
  */
 export function detectLEDDots(opts) {
   
   const {
-    canvasWidth,
-    canvasHeight,
     text,
     fontSize,
     textHeightPercent,
     squareSize = 8,
-    createCanvas
+    auxCtx // Received instead of factory
   } = opts;
   
-  const fontFamily = 'Doto';
+  const canvasWidth = auxCtx.canvas.width
+  const canvasHeight = auxCtx.canvas.height
+
+  const fontFamily = 'Tinos';
+
+  // 1. CLEAR the scratchpad (Reuse > Create)
+  auxCtx.clearRect(0, 0, canvasWidth, canvasHeight);
   
-  // Create temporary canvas to render text
-  const tempCanvas = createCanvas(canvasWidth, canvasHeight);
-  const tempCtx = tempCanvas.getContext('2d');
-  
-  // Calculate position
+  // 2. Calculate position
   const { maxWidth } = calculateTextPosition(
     canvasWidth, canvasHeight, 0, fontSize, textHeightPercent
   );
   
   // Word wrapping is timed inside wrapText
-  const lines = wrapText(tempCtx, text, maxWidth, fontFamily, fontSize);
+  const lines = wrapText(auxCtx, text, maxWidth, fontFamily, fontSize);
   const position = calculateTextPosition(
     canvasWidth, canvasHeight, lines.length, fontSize, textHeightPercent
   );
   
-  // Render text
-  tempCtx.font = `${fontSize}px ${fontFamily}`;
-  tempCtx.fillStyle = '#FFFFFF';
-  tempCtx.textBaseline = 'alphabetic';
+  // 3. Render text to scratchpad
+  auxCtx.font = `${fontSize}px ${fontFamily}`;
+  auxCtx.fillStyle = '#FFFFFF';
+  auxCtx.textBaseline = 'alphabetic';
   
   lines.forEach((line, i) => {
-    const lineWidth = tempCtx.measureText(line).width;
+    const lineWidth = auxCtx.measureText(line).width;
     const lineX = (canvasWidth - lineWidth) / 2;
     const lineY = position.startY + i * position.lineHeight;
-    tempCtx.fillText(line, lineX, lineY);
+    auxCtx.fillText(line, lineX, lineY);
   });
   
-  // Scan for LED dots
-  const imageData = tempCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+  // 4. Scan the scratchpad
+  const imageData = auxCtx.getImageData(0, 0, canvasWidth, canvasHeight);
   const data = imageData.data;
   const visited = new Set();
   const detectedDots = [];
@@ -323,7 +310,6 @@ const LED_COLORS = [
  * @param {number} opts.squareSize - Dot size reference (default 8)
  */
 export function renderLEDEffect(ctx, opts) {
-  // This function runs every frame, so we'll log its total time.
   
   const {
     dots,
@@ -389,5 +375,4 @@ export function renderLEDEffect(ctx, opts) {
   });
   
   ctx.globalAlpha = 1.0;
-  
 }
