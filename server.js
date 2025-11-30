@@ -38,6 +38,7 @@ import paymentRoutes from './routes/payment.mjs'
 import captionRoutes from './routes/captions.mjs'
 import feedbackRoutes from './routes/feedback.mjs'
 import errorRoutes from './routes/error.mjs'
+import videosRoutes from './routes/videos.mjs'
 
 // Mount routes
 app.use('/api', authRoutes)
@@ -47,6 +48,7 @@ app.use('/api', paymentRoutes)
 app.use('/api', captionRoutes)
 app.use('/api', feedbackRoutes)
 app.use('/api', errorRoutes)
+app.use('/api', videosRoutes)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`))

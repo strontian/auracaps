@@ -1,5 +1,5 @@
 import express from 'express'
-import { writeCaptions } from '../services/pg.mjs'
+import { pool } from '../services/pg.mjs'
 import { transcribe } from '../services/deepgram.mjs'
 import { getUploadUrl } from '../services/r2_new.mjs'
 import { srt } from "@deepgram/captions";
@@ -77,7 +77,9 @@ async function generateHolographicCaptionsForVideo(accountId, displayName, fontS
     const videoInfo = await probeVideo(localInputFile);
 
     // 3. Get SRT from database
-    const query = 'select srt from transcripts where account_id=$1 and file_name=$2';
+    const query = `select t.srt from transcripts t
+                   join videos v on t.video_id = v.id
+                   where t.account_id=$1 and v.filename=$2`;
     const captions = await pool.query(query, [accountId, displayName]);
     
     if (!captions.rows.length) {
@@ -158,8 +160,6 @@ async function deleteFile(filePath) {
   }
 }
 
-import { pool } from '../services/pg.mjs'
-
 router.get('/captions/dl_token', async (req, res) => {
   const accountId = req.session.accountId
   const videoName = req.query.name;
@@ -188,25 +188,42 @@ router.get('/captions/transcript/', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const query = 'select srt from transcripts where account_id=$1 and file_name=$2'
+  const query = `select t.srt from transcripts t
+                 join videos v on t.video_id = v.id
+                 where t.account_id=$1 and v.filename=$2`
   let captions = await pool.query(query, [accountId, fileName])
   
   res.json(captions.rows[0].srt)
 })
 
-//CAPTIONS_UPLOAD.HTML
 router.post('/transcribe_audio', async (req, res) => {
   const { fileName, duration } = req.body
   let accountId = req.session.accountId
   if(!accountId || !fileName) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
+  
+  const videoResult = await pool.query(
+    `INSERT INTO videos (account_id, filename, is_original)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [accountId, fileName, true]
+  )
+  const videoId = videoResult.rows[0].id
+  
   let audioViewToken = await getViewUrl('tv-captions', accountId + '-' + fileName)
   let dgResponse = await transcribe(audioViewToken)
   const dgsrt = srt(dgResponse)
   let words = dgResponse.results.channels[0].alternatives[0].words
-  writeCaptions(JSON.stringify(words), accountId, fileName, dgsrt)
-  return res.status(200).json({srt:dgsrt})
+  console.log(words)
+  // Write transcript directly
+  await pool.query(
+    `INSERT INTO transcripts (timestamp, account_id, video_id, srt, words)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [new Date(), accountId, videoId, dgsrt, JSON.stringify(words)]
+  )
+  
+  return res.status(200).json({srt: dgsrt})
 })
 
 router.post('/audio_upload_token', (req, res) => {
