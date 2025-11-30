@@ -38,7 +38,7 @@
 
         .header {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             padding: 1rem;
             background: var(--bg-glass);
@@ -49,6 +49,24 @@
         .logo-section {
             display: flex;
             align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.3s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .logo {
@@ -187,6 +205,11 @@
                 padding: 0.6rem 1.5rem;
                 font-size: 0.9rem;
             }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+            }
         }
     </style>
     <script defer data-domain="auracaptions.com" src="https://plausible.io/js/script.js"></script>
@@ -198,6 +221,10 @@
                 <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Aura Captions Logo">
                 <h2 class="logo-text">Aura Captions</h2>
             </div>
+            <nav class="nav-links">
+                <a href="/upload.html" class="nav-link">Upload</a>
+                <a href="/my-videos.html" class="nav-link">My Videos</a>
+            </nav>
         </header>
 
         <main class="main-content">
@@ -232,27 +259,27 @@
 
     <script>
         let videoUrl = '';
-        let nameParam = '';
+        let videoId = '';
 
-        // Get the name parameter from URL
-        function getNameParam() {
+        // Get the video ID parameter from URL
+        function getVideoId() {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('name') || '';
+            return urlParams.get('id') || '';
         }
 
         async function loadVideo() {
             const loadingMessage = document.getElementById('loadingMessage');
             const videoPlayerContainer = document.getElementById('videoPlayerContainer');
             const videoPlayer = document.getElementById('videoPlayer');
-            
-            // Get the name parameter
-            nameParam = getNameParam();
-            
+
+            // Get the video ID parameter
+            videoId = getVideoId();
+
             try {
-                // Build the URL with name parameter if it exists
+                // Build the URL with video ID parameter if it exists
                 let videoTokenUrl = '/api/captions/dl_token';
-                if (nameParam) {
-                    videoTokenUrl += `?name=${encodeURIComponent(nameParam)}`;
+                if (videoId) {
+                    videoTokenUrl += `?id=${videoId}`;
                 }
                 
                 // Fetch the presigned video URL
@@ -271,9 +298,9 @@
                 loadingMessage.style.display = 'none';
                 videoPlayerContainer.style.display = 'block';
                 
-                // Update video title if name parameter exists
-                if (nameParam) {
-                    document.getElementById('videoTitle').textContent = decodeURIComponent(nameParam);
+                // Update video title with video ID
+                if (videoId) {
+                    document.getElementById('videoTitle').textContent = `Video ${videoId}`;
                 }
                 
                 // Set up download button
@@ -292,9 +319,9 @@
                 downloadButton.disabled = true;
                 downloadButton.textContent = 'Preparing download...';
                 
-                // Try to fetch download token with name parameter
+                // Try to fetch download token with video ID parameter
                 try {
-                    let dlTokenUrl = '/api/captions/dl_token' + `?name=${encodeURIComponent(nameParam)}`
+                    let dlTokenUrl = '/api/captions/dl_token' + `?id=${videoId}`
                     
                     const response = await fetch(dlTokenUrl);
                     
@@ -303,9 +330,9 @@
                         if (data.token) {
                             // Use the download endpoint with token
                             let downloadUrl = `/api/captions/download?token=${data.token}`;
-                            // Optionally include name parameter in download URL as well
-                            if (nameParam) {
-                                downloadUrl += `&name=${encodeURIComponent(nameParam)}`;
+                            // Optionally include video ID in download URL as well
+                            if (videoId) {
+                                downloadUrl += `&id=${videoId}`;
                             }
                             window.location.href = downloadUrl;
                             downloadButton.textContent = 'Download Video';
@@ -323,19 +350,10 @@
                     // Create a temporary anchor element to trigger download
                     const a = document.createElement('a');
                     a.href = videoUrl;
-                    
-                    // Use name parameter as filename if available
-                    if (nameParam) {
-                        // Clean the name for use as a filename
-                        let filename = nameParam.replace(/[^a-z0-9_\-\.]/gi, '_');
-                        if (!filename.includes('.')) {
-                            filename += '.mp4';
-                        }
-                        console.log(filename)
 
-                        if (filename.includes('-')) {
-                            filename = filename.substring(filename.indexOf('-') + 1);
-                        }
+                    // Use video ID as filename
+                    if (videoId) {
+                        let filename = `video_${videoId}_captions.mp4`;
                         a.download = filename;
                     }
                     

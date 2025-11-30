@@ -372,7 +372,7 @@
       
       <div id="video-container">
         <div id="video-wrapper">
-          <video id="video" crossorigin="anonymous" controls></video>
+          <video autoplay id="video" crossorigin="anonymous" controls></video>
           <canvas id="canvas"></canvas>
           <div id="loading">Loading...</div>
         </div>
@@ -444,7 +444,7 @@
     let ledDots = null;
     let lastLEDText = null;
     const urlParams = new URLSearchParams(window.location.search)
-    let videoName = urlParams.get('name')
+    let videoId = urlParams.get('id')
 
     // Update style selection
     styleSelect.addEventListener('change', (e) => {
@@ -516,7 +516,7 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            videoName: videoName,
+            videoId: videoId,
             fontSize: fontSize,
             textPosition: textHeightPercent,
             style: currentStyle
@@ -531,9 +531,8 @@
         exportStatus.textContent = 'Processing video...';
         exportStatus.style.color = '#fff';
         console.log('Export started:', result);
-        
+
         // Poll for file completion
-        const outputFileName = `${videoName.replace(/\.[^/.]+$/, '')}_captioned.mp4`;
         let fileFound = false;
         let pollAttempts = 0;
         const maxAttempts = 120; // 2 minutes max (120 * 1 second)
@@ -543,7 +542,7 @@
           pollAttempts++;
           
           try {
-            const checkEndpoint = `/api/captions/check/${encodeURIComponent(videoName)}`;
+            const checkEndpoint = `/api/captions/check/${videoId}`;
             const checkResponse = await fetch(checkEndpoint);
             
             if (checkResponse.ok) {
@@ -552,10 +551,10 @@
                 fileFound = true;
                 exportStatus.textContent = 'Export complete! Redirecting...';
                 exportStatus.style.color = '#86efac';
-                
+
                 // Redirect after brief delay
                 setTimeout(() => {
-                  window.location.href = `/download.html?name=${encodeURIComponent(videoName)}`;
+                  window.location.href = `/download.html?id=${checkData.captionedVideoId}`;
                 }, 1500);
               } else {
                 // Update status with attempt count
@@ -697,15 +696,15 @@
 
         // Get video token and load video
         const urlParams = new URLSearchParams(window.location.search)
-        const videoName = urlParams.get('name')
-        const srtResponse = await fetch(`/api/captions/transcript/?name=${encodeURIComponent(videoName)}`);
-        
+        const videoName = urlParams.get('id')
+        const srtResponse = await fetch(`/api/captions/transcript/?id=${videoName}`);
+
         // Load SRT file
         const srtContent = await srtResponse.json();
         console.log(srtContent)
         subtitles = parseSRT(srtContent);
 
-        const tokenResponse = await fetch(`/api/captions/video_token?name=${encodeURIComponent(videoName)}`)
+        const tokenResponse = await fetch(`/api/captions/video_token?id=${videoName}`)
         const tokenData = await tokenResponse.json();
         video.src = tokenData
 

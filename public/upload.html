@@ -343,6 +343,26 @@
             });
         }
 
+        async function createVideoEntry(fileName) {
+            try {
+                const response = await fetch(`${API_BASE}/videos/create`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ fileName })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create video entry');
+                }
+
+                const data = await response.json();
+                return data.videoId;
+            } catch (error) {
+                console.error('[VideoCreateError] ' + error.message);
+                throw error;
+            }
+        }
+
         async function processFile(file) {
             clearMessages();
 
@@ -359,6 +379,9 @@
             showProcessing('Preparing...');
 
             try {
+                // Create video entry first to get video ID
+                const videoId = await createVideoEntry(file.name);
+
                 await loadFFmpeg();
 
                 showProcessing('Extracting audio...');
@@ -375,8 +398,8 @@
 
                 updateProgress(33, 'Audio extracted, uploading audio...');
 
-                await uploadAudio(audioBlob, file.name, duration);
-                await uploadVideo(file, file.name, duration);
+                await uploadAudio(audioBlob, videoId, duration);
+                await uploadVideo(file, videoId, duration);
             } catch (error) {
                 console.error('[ProcessingError] ' + error.message);
                 showMessage('Error processing video: ' + error.message, 'error');
@@ -394,29 +417,28 @@
             });
         }
 
-        async function getUploadToken(fileName, fileType, endpoint = 'audio_upload_token') {
+        async function getUploadToken(videoId, fileType, endpoint = 'audio_upload_token') {
             try {
                 const response = await fetch(`${API_BASE}/${endpoint}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ fileName, fileType })
+                    body: JSON.stringify({ videoId, fileType })
                 });
-                
+
                 if (!response.ok) {
-                    console.error(`[TokenFetchError] HTTP ${response.status} - ${fileName}`);
+                    console.error(`[TokenFetchError] HTTP ${response.status} - videoId: ${videoId}`);
                     throw new Error('Failed to fetch token');
                 }
-                
+
                 return await response.json();
             } catch (error) {
-                console.error(`[TokenFetchError] ${error.message} - ${fileName}`);
+                console.error(`[TokenFetchError] ${error.message} - videoId: ${videoId}`);
                 throw error;
             }
         }
 
-        async function uploadAudio(audioBlob, originalFileName, duration) {
-            const audioFileName = originalFileName.replace(/\.[^/.]+$/, '') + '.m4a';
-            const token = await getUploadToken(audioFileName, 'audio/mp4', 'audio_upload_token');
+        async function uploadAudio(audioBlob, videoId, duration) {
+            const token = await getUploadToken(videoId, 'audio/mp4', 'audio_upload_token');
             
             return new Promise((resolve, reject) => {
                 const req = new XMLHttpRequest();
@@ -426,7 +448,7 @@
                         updateProgress(66, 'Audio uploaded, uploading video...');
                         resolve();
                     } else {
-                        console.error(`[AudioUploadError] HTTP ${req.status} - ${audioFileName}`);
+                        console.error(`[AudioUploadError] HTTP ${req.status} - videoId: ${videoId}`);
                         reject(new Error(`Audio upload failed: ${req.status}`));
                     }
                 };
@@ -439,12 +461,12 @@
                 });
 
                 req.upload.addEventListener("error", () => {
-                    console.error(`[AudioUploadErrorHandler] ${req.status} - ${audioFileName}`);
+                    console.error(`[AudioUploadErrorHandler] ${req.status} - videoId: ${videoId}`);
                     reject(new Error('Audio upload error'));
                 });
 
                 req.upload.addEventListener("abort", () => {
-                    console.error(`[AudioUploadAbortHandler] ${req.status} - ${audioFileName}`);
+                    console.error(`[AudioUploadAbortHandler] ${req.status} - videoId: ${videoId}`);
                     reject(new Error('Audio upload aborted'));
                 });
 
@@ -454,18 +476,18 @@
             });
         }
 
-        async function uploadVideo(videoBlob, originalFileName, duration) {
-            const token = await getUploadToken(originalFileName, videoBlob.type, 'video_upload_token');
-            
+        async function uploadVideo(videoBlob, videoId, duration) {
+            const token = await getUploadToken(videoId, videoBlob.type, 'video_upload_token');
+
             return new Promise((resolve, reject) => {
                 const req = new XMLHttpRequest();
-                
+
                 req.onload = function() {
                     if (req.status >= 200 && req.status < 300) {
-                        transferComplete(originalFileName, duration);
+                        transferComplete(videoId, duration);
                         resolve();
                     } else {
-                        console.error(`[VideoUploadError] HTTP ${req.status} - ${originalFileName}`);
+                        console.error(`[VideoUploadError] HTTP ${req.status} - videoId: ${videoId}`);
                         reject(new Error(`Video upload failed: ${req.status}`));
                     }
                 };
@@ -478,12 +500,12 @@
                 });
 
                 req.upload.addEventListener("error", () => {
-                    console.error(`[VideoUploadErrorHandler] ${req.status} - ${originalFileName}`);
+                    console.error(`[VideoUploadErrorHandler] ${req.status} - videoId: ${videoId}`);
                     reject(new Error('Video upload error'));
                 });
 
                 req.upload.addEventListener("abort", () => {
-                    console.error(`[VideoUploadAbortHandler] ${req.status} - ${originalFileName}`);
+                    console.error(`[VideoUploadAbortHandler] ${req.status} - videoId: ${videoId}`);
                     reject(new Error('Video upload aborted'));
                 });
 
@@ -493,26 +515,26 @@
             });
         }
 
-        async function transferComplete(fileName, duration) {
+        async function transferComplete(videoId, duration) {
             updateProgress(100, 'Upload complete, starting transcription...');
-            
+
             try {
                 const response = await fetch(`${API_BASE}/transcribe_audio`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileName, duration })
+                    body: JSON.stringify({ videoId, duration })
                 });
-                
+
                 if (!response.ok) {
-                    console.error(`[UploadCompletionError] HTTP ${response.status} - ${fileName}`);
+                    console.error(`[UploadCompletionError] HTTP ${response.status} - videoId: ${videoId}`);
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 showMessage('Video and audio uploaded, transcription started successfully! Redirecting...', 'success');
-                window.location.href = `/holo.html?name=${encodeURIComponent(fileName)}`;                
+                window.location.href = `/holo.html?id=${videoId}`;
             } catch (error) {
-                console.error(`[UploadCompletionError] ${error.message} - ${fileName}`);
+                console.error(`[UploadCompletionError] ${error.message} - videoId: ${videoId}`);
                 showMessage('Error starting transcription: ' + error.message, 'error');
             }
         }

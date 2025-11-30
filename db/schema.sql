@@ -15,6 +15,7 @@ CREATE TABLE videos (
   id SERIAL PRIMARY KEY,
   account_id TEXT NOT NULL,
   filename TEXT NOT NULL,
+  r2_key TEXT,
   is_original BOOLEAN,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -24,7 +25,7 @@ CREATE INDEX idx_videos_created_at ON videos(created_at DESC);
 
 CREATE TABLE caption_tasks (
   id SERIAL PRIMARY KEY,
-  account_id INTEGER NOT NULL,
+  account_id TEXT NOT NULL,
   source_id INTEGER,
   dest_id INTEGER,
   caption_config JSON,

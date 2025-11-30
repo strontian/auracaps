@@ -14,20 +14,26 @@ router.get('/videos', async (req, res) => {
   try {
     const query = `
       SELECT
+        v.id,
         v.filename,
         v.created_at,
-        t.srt
+        t.srt,
+        ct.dest_id
       FROM videos v
       LEFT JOIN transcripts t ON v.id = t.video_id
-      WHERE v.account_id = $1
+      LEFT JOIN caption_tasks ct ON v.id = ct.source_id
+      WHERE v.account_id = $1 AND v.is_original = true
       ORDER BY v.created_at DESC
     `
     const result = await pool.query(query, [accountId])
 
     const videos = result.rows.map(row => ({
+      id: row.id,
       fileName: row.filename,
       uploadDate: row.created_at,
-      hasCaptions: !!row.srt
+      hasTranscript: !!row.srt,
+      hasCaptionedVideo: !!row.dest_id,
+      captionedVideoId: row.dest_id
     }))
 
     res.json({ videos })
