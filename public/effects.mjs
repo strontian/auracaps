@@ -32,6 +32,151 @@ export function wrapText(ctx, text, maxWidth, fontFamily, fontSize) {
   return allLines;
 }
 
+// effects.js
+
+// ... (Your existing wrapText and calculateTextPosition functions remain here) ...
+
+// effects.js
+
+// ... keep wrapText and calculateTextPosition as they were ...
+
+const RAINBOW_CONFIG = {
+  speed: 1,
+  count: 30000, 
+  zoom: 3,
+  size: 20,
+  colors: [0, 30, 60, 120, 180, 240, 270, 300]
+};
+
+export function renderRainbowEffect(ctx, opts) {
+  const {
+    text,
+    fontSize,
+    textHeightPercent,
+    state = {} 
+  } = opts;
+
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const fontFamily = 'Modak';
+  const padding = 50;
+  const maxWidth = canvasWidth - (padding * 2) - 40;
+
+  // --- OPTIMIZATION 1: Initialize State & Offscreen Canvas ---
+  if (!state.particles) {
+    state.particles = [];
+    state.colorOffset = 0;
+    
+    // Create a persistent offscreen canvas inside the state
+    state.offCanvas = document.createElement('canvas');
+    state.offCtx = state.offCanvas.getContext('2d');
+    
+    state.createParticle = (startRandomY = true) => ({
+      x: Math.random() * canvasWidth,
+      y: startRandomY ? Math.random() * canvasHeight : -50,
+      speedVar: 0.8 + Math.random() * 0.4,
+      sizeVar: 0.8 + Math.random() * 0.4,
+      lightness: 40 + Math.random() * 20
+    });
+
+    for (let i = 0; i < RAINBOW_CONFIG.count; i++) {
+      state.particles.push(state.createParticle(true));
+    }
+  }
+
+  // Ensure offscreen canvas matches main canvas size (in case of resize)
+  if (state.offCanvas.width !== canvasWidth || state.offCanvas.height !== canvasHeight) {
+    state.offCanvas.width = canvasWidth;
+    state.offCanvas.height = canvasHeight;
+  }
+
+  // --- OPTIMIZATION 2: Memoize Text Layout ---
+  // Only recalculate wrapping if text or font size changes
+  if (state.lastText !== text || state.lastFontSize !== fontSize || state.lastWidth !== canvasWidth) {
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    state.cachedLines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
+    state.lastText = text;
+    state.lastFontSize = fontSize;
+    state.lastWidth = canvasWidth;
+  }
+
+  const lines = state.cachedLines;
+  const position = calculateTextPosition(
+    canvasHeight, lines.length, fontSize, textHeightPercent
+  );
+
+  // --- STEP 1: Draw Particles to Offscreen Canvas (Cheap) ---
+  const { offCtx, offCanvas } = state;
+  
+  // Clear only the needed area? No, clear all for safety.
+  offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  
+  state.colorOffset += RAINBOW_CONFIG.speed * 0.002;
+
+  // Batch draw particles without any composition logic
+  state.particles.forEach(p => {
+    p.y += RAINBOW_CONFIG.speed * p.speedVar;
+    if (p.y > canvasHeight) {
+      p.x = Math.random() * canvasWidth;
+      p.y = -50;
+      p.speedVar = 0.8 + Math.random() * 0.4;
+      p.sizeVar = 0.8 + Math.random() * 0.4;
+      p.lightness = 40 + Math.random() * 20;
+    }
+
+    const diagonalVal = (p.x + p.y) / (canvasWidth + canvasHeight);
+    let huePos = (diagonalVal * RAINBOW_CONFIG.zoom - state.colorOffset) % 1;
+    if (huePos < 0) huePos += 1;
+
+    const colorIndex = huePos * (RAINBOW_CONFIG.colors.length - 1);
+    const lowerIndex = Math.floor(colorIndex);
+    const upperIndex = Math.ceil(colorIndex);
+    const blend = colorIndex - lowerIndex;
+    const hue = RAINBOW_CONFIG.colors[lowerIndex] * (1 - blend) + 
+                RAINBOW_CONFIG.colors[upperIndex] * blend;
+
+    const size = RAINBOW_CONFIG.size * p.sizeVar;
+
+    offCtx.fillStyle = `hsl(${hue}, 80%, ${p.lightness}%)`;
+    offCtx.fillRect(p.x, p.y, size, size);
+  });
+
+  // --- STEP 2: Draw Text on Main Canvas ---
+  ctx.save();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'left'; 
+  ctx.textBaseline = 'alphabetic';
+
+  lines.forEach((line, i) => {
+    const lineWidth = ctx.measureText(line).width;
+    const lineX = (canvasWidth - lineWidth) / 2;
+    const lineY = position.startY + i * position.lineHeight;
+    ctx.fillText(line, lineX, lineY);
+  });
+
+  // --- STEP 3: Composite ONCE ---
+  // We draw the entire offscreen canvas onto the text in one operation
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.drawImage(offCanvas, 0, 0);
+
+  // --- STEP 4: Outline ---
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 4;
+  ctx.lineJoin = 'miter';
+  ctx.miterLimit = 2;
+
+  lines.forEach((line, i) => {
+    const lineWidth = ctx.measureText(line).width;
+    const lineX = (canvasWidth - lineWidth) / 2;
+    const lineY = position.startY + i * position.lineHeight;
+    ctx.strokeText(line, lineX, lineY);
+  });
+
+  ctx.restore();
+}
+
 export function calculateTextPosition(canvasHeight, lineCount, fontSize, textHeightPercent) {
   const lineHeight = fontSize * 1.2;
   const totalTextHeight = lineCount * lineHeight;

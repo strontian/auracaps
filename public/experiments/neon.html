@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decoupled Neon Animation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Beon&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a0a url('https://www.transparenttextures.com/patterns/black-brick-wall.png');
+            font-family: 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        canvas {
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+            background-color: rgba(0,0,0,0.6);
+            border: 4px solid #222;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* Control Panel */
+        .controls {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            align-items: start;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            max-width: 800px;
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 180px;
+        }
+        
+        .label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #aaa;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #fff;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #444;
+            border-radius: 2px;
+        }
+
+        input[type=color] {
+            -webkit-appearance: none;
+            border: none;
+            width: 100%;
+            height: 30px;
+            padding: 0;
+            background: none;
+            cursor: pointer;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    
+    <div class="controls">
+        <div class="control-section">
+            <div class="control-group">
+                <div class="label">
+                    <span>Sequence Tempo</span>
+                </div>
+                <input type="range" id="tempoSlider" min="100" max="2000" step="50" value="600">
+            </div>
+
+            <div class="control-group">
+                <div class="label">
+                    <span>Power On Rate</span>
+                </div>
+                <input type="range" id="attackSlider" min="0.005" max="0.1" step="0.001" value="0.03">
+            </div>
+
+            <div class="control-group">
+                <div class="label">
+                    <span>Fade Out Rate</span>
+                </div>
+                <input type="range" id="decaySlider" min="0.005" max="0.1" step="0.001" value="0.02">
+            </div>
+        </div>
+
+        <div class="control-section" style="border-left: 1px solid #333; padding-left: 30px;">
+            <div class="control-group">
+                <div class="label">Tube Color</div>
+                <input type="color" id="colorTube" value="#00f7ff">
+            </div>
+            <div class="control-group">
+                <div class="label">Halo Color</div>
+                 <input type="color" id="colorHalo" value="#0051ff">
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+
+        // --- CONFIGURATION ---
+        const WIDTH = 1000;
+        const HEIGHT = 300;
+        const FONT_SIZE = 90;
+        const FONT_FAMILY = 'Beon, sans-serif';
+        const SPACING = 30;
+        
+        let words = [
+            { text: "CODE",    alpha: 0, width: 0 },
+            { text: "SLEEP",   alpha: 0, width: 0 },
+            { text: "REPEAT",  alpha: 0, width: 0 },
+            { text: "REFACTOR",alpha: 0, width: 0 }
+        ];
+
+        // --- STATE VARIABLES ---
+        let tubeColor = '#00f7ff';
+        let haloColor = '#0051ff';
+
+        let activeIndex = 0;
+        
+        // Timing Logic
+        let lastSwitchTime = 0;
+        let sequenceInterval = 600; // ms between switches (Controlled by Tempo Slider)
+        
+        // Physics Logic
+        let attackSpeed = 0.03;     // alpha added per frame
+        let decaySpeed = 0.02;      // alpha removed per frame
+
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+
+        // --- INPUT HANDLERS ---
+        const tempoSlider = document.getElementById('tempoSlider');
+        const attackSlider = document.getElementById('attackSlider');
+        const decaySlider = document.getElementById('decaySlider');
+        const colorTubePicker = document.getElementById('colorTube');
+        const colorHaloPicker = document.getElementById('colorHalo');
+        
+        // Note: We reverse the logic for the Tempo slider so dragging right feels "Faster"
+        // But in code, a smaller interval means faster.
+        tempoSlider.addEventListener('input', (e) => {
+            // Mapping: Slider value is explicitly MS delay
+            sequenceInterval = parseInt(e.target.value); 
+        });
+
+        attackSlider.addEventListener('input', (e) => attackSpeed = parseFloat(e.target.value));
+        decaySlider.addEventListener('input', (e) => decaySpeed = parseFloat(e.target.value));
+        colorTubePicker.addEventListener('input', (e) => tubeColor = e.target.value);
+        colorHaloPicker.addEventListener('input', (e) => haloColor = e.target.value);
+
+        // --- CORE LOGIC ---
+
+        function updatePhysics(currentTime) {
+            
+            // 1. SEQUENCE LOGIC (Time-based)
+            // ==============================
+            // We switch based on the clock, ignoring whether the word is fully lit or not
+            if (currentTime - lastSwitchTime > sequenceInterval) {
+                activeIndex = (activeIndex + 1) % words.length;
+                lastSwitchTime = currentTime;
+            }
+
+            // 2. BRIGHTNESS LOGIC (Physics-based)
+            // ===================================
+            words.forEach((word, index) => {
+                if (index === activeIndex) {
+                    // This is the active word: Heat it up!
+                    if (word.alpha < 1.0) {
+                        word.alpha += attackSpeed;
+                    }
+                    if (word.alpha > 1.0) word.alpha = 1.0; // Clamp max
+                } else {
+                    // This is not active: Cool it down!
+                    if (word.alpha > 0) {
+                        word.alpha -= decaySpeed;
+                    }
+                    if (word.alpha < 0) word.alpha = 0; // Clamp min
+                }
+            });
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}` : null;
+        }
+
+        function drawWord(word, x, y) {
+            const alpha = word.alpha;
+
+            ctx.save();
+            ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+
+            // Draw Dark Tube (Background)
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.strokeText(word.text, x, y);
+            
+            if (alpha > 0.01) {
+                ctx.globalAlpha = alpha;
+
+                // Outer Glow
+                ctx.globalCompositeOperation = 'lighter'; 
+                ctx.shadowColor = haloColor;
+                ctx.shadowBlur = 40;
+                ctx.fillStyle = haloColor;
+                ctx.fillText(word.text, x, y); 
+
+                // Inner Tube
+                ctx.shadowColor = tubeColor;
+                ctx.shadowBlur = 15;
+                ctx.strokeStyle = tubeColor;
+                ctx.lineWidth = 4;
+                ctx.strokeText(word.text, x, y);
+
+                // Hot Core (White)
+                if (alpha > 0.5) {
+                    ctx.shadowBlur = 5;
+                    const rgb = hexToRgb(tubeColor);
+                    ctx.strokeStyle = `rgba(${rgb}, 0.8)`; 
+                    ctx.lineWidth = 2;
+                    ctx.strokeText(word.text, x, y);
+                    
+                    if(alpha > 0.8) {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 1;
+                        ctx.strokeText(word.text, x, y);
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
+        function render(currentTime) {
+            // Pass the timestamp to physics
+            updatePhysics(currentTime);
+            
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+            // Centering Logic
+            ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            let totalWidth = 0;
+            words.forEach(w => {
+                w.width = ctx.measureText(w.text).width;
+                totalWidth += w.width;
+            });
+            totalWidth += (words.length - 1) * SPACING;
+
+            let currentX = (WIDTH - totalWidth) / 2;
+            const Y = HEIGHT / 2;
+
+            // Draw Logic
+            words.forEach(word => {
+                drawWord(word, currentX, Y);
+                currentX += word.width + SPACING;
+            });
+
+            requestAnimationFrame(render);
+        }
+
+        // Initialize
+        document.fonts.load(`${FONT_SIZE}px Beon`).then(() => {
+            requestAnimationFrame(render);
+        }).catch(() => {
+            requestAnimationFrame(render);
+        });
+
+    </script>
+</body>
+</html>

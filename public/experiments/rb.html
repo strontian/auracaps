@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Modak&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        canvas {
+            /* Checkerboard pattern to show transparency */
+            background-image: linear-gradient(45deg, #222 25%, transparent 25%), 
+                              linear-gradient(-45deg, #222 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #222 75%), 
+                              linear-gradient(-45deg, transparent 75%, #222 75%);
+            background-size: 20px 20px;
+            background-color: #111;
+            
+            border: 2px solid #333;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+        .input-container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            width: 800px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background: #444;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 20px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    
+    <div class="input-container">
+        <input type="text" id="textInput" value="HELLO WORLD" placeholder="Type text here...">
+    </div>
+    
+    <script>
+        // --- CONFIGURATION (Hard Coded) ---
+        const CONFIG = {
+            speed: 1,
+            count: 30000,
+            zoom: 3,
+            size: 12
+        };
+
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        
+        const offscreenCanvas = document.createElement('canvas');
+        const offCtx = offscreenCanvas.getContext('2d');
+
+        // Set dimensions
+        const WIDTH = 800;
+        const HEIGHT = 600;
+        
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+        offscreenCanvas.width = WIDTH;
+        offscreenCanvas.height = HEIGHT;
+        
+        // Input Element
+        const textInput = document.getElementById('textInput');
+        
+        // Setup
+        const rainbowColors = [0, 30, 60, 120, 180, 240, 270, 300];
+        let particles = [];
+        let colorOffset = 0; 
+        
+        // Text Layout Cache
+        let cachedLines = [];
+        let cachedStartY = 0;
+        let cachedLineHeight = 0;
+
+        function calculateTextLayout() {
+            const text = textInput.value.toUpperCase();
+            const fontSize = 150;
+            const fontFamily = 'Modak';
+            const padding = 50;
+            const maxWidth = WIDTH - (padding * 2);
+
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            
+            const paragraphs = text.split('\n');
+            cachedLines = [];
+            
+            for (const paragraph of paragraphs) {
+                if (!paragraph.trim()) continue;
+                const words = paragraph.split(' ');
+                let currentLine = '';
+                
+                for (const word of words) {
+                    const testLine = currentLine ? `${currentLine} ${word}` : word;
+                    const metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width > maxWidth && currentLine) {
+                        cachedLines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                if (currentLine) cachedLines.push(currentLine);
+            }
+
+            cachedLineHeight = fontSize * 0.9;
+            const totalHeight = cachedLines.length * cachedLineHeight;
+            cachedStartY = (HEIGHT - totalHeight) / 2 + (cachedLineHeight/2);
+        }
+
+        class Particle {
+            constructor(startRandomY = true) {
+                this.reset(startRandomY);
+            }
+
+            reset(startRandomY = false) {
+                this.x = Math.random() * WIDTH;
+                // Start slightly higher up so they don't pop in
+                this.y = startRandomY ? Math.random() * HEIGHT : -50; 
+                
+                this.speedVar = 0.8 + Math.random() * 0.4; 
+                this.sizeVar = 0.8 + Math.random() * 0.4; 
+                this.lightness = 40 + Math.random() * 20; 
+            }
+
+            update() {
+                // Use hardcoded speed
+                this.y += CONFIG.speed * this.speedVar;
+                
+                if (this.y > HEIGHT) {
+                    this.reset(false);
+                }
+            }
+
+            draw() {
+                const diagonalVal = (this.x + this.y) / (WIDTH + HEIGHT);
+                // Use hardcoded zoom
+                let huePos = (diagonalVal * CONFIG.zoom - colorOffset) % 1;
+                if (huePos < 0) huePos += 1;
+
+                const colorIndex = huePos * (rainbowColors.length - 1);
+                const lowerIndex = Math.floor(colorIndex);
+                const upperIndex = Math.ceil(colorIndex);
+                const blend = colorIndex - lowerIndex;
+                const hue = rainbowColors[lowerIndex] * (1 - blend) + rainbowColors[upperIndex] * blend;
+                
+                // Use hardcoded size
+                const size = CONFIG.size * this.sizeVar;
+
+                offCtx.fillStyle = `hsl(${hue}, 80%, ${this.lightness}%)`;
+                offCtx.fillRect(this.x, this.y, size, size);
+            }
+        }
+
+        function initParticles() {
+            // Use hardcoded count
+            const count = CONFIG.count;
+            if (particles.length > count) {
+                particles.length = count;
+            } else {
+                while (particles.length < count) {
+                    particles.push(new Particle(true));
+                }
+            }
+        }
+
+        function animate() {
+            // 1. Draw Particles on OFFSCREEN canvas
+            offCtx.clearRect(0, 0, WIDTH, HEIGHT);
+            
+            colorOffset += CONFIG.speed * 0.002; 
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
+
+            // 2. Prepare MAIN canvas
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            
+            // 3. Draw The Text Mask (White)
+            ctx.save();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `150px Modak`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            cachedLines.forEach((line, i) => {
+                ctx.fillText(line, WIDTH / 2, cachedStartY + i * cachedLineHeight);
+            });
+
+            // 4. CLIP: Keep only where text is
+            ctx.globalCompositeOperation = 'source-in';
+
+            // 5. Draw the entire particle canvas
+            ctx.drawImage(offscreenCanvas, 0, 0);
+
+            // 6. Restore and Outline
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'miter';
+            ctx.miterLimit = 2;
+            
+            cachedLines.forEach((line, i) => {
+                ctx.strokeText(line, WIDTH / 2, cachedStartY + i * cachedLineHeight);
+            });
+
+            ctx.restore();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        textInput.addEventListener('input', () => {
+            calculateTextLayout();
+        });
+
+        // Initialize
+        document.fonts.ready.then(function() {
+            calculateTextLayout();
+            initParticles();
+            animate();
+        });
+
+        // Initial calc
+        calculateTextLayout();
+        initParticles();
+
+    </script>
+</body>
+</html>

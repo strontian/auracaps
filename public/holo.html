@@ -415,7 +415,8 @@
     </footer>
   </div>
 <script type="module">
-    import { renderHolographicEffect, detectLEDDots, renderLEDEffect } from './effects.mjs';
+    // UPDATED IMPORT: Added renderRainbowEffect
+    import { renderHolographicEffect, detectLEDDots, renderLEDEffect, renderRainbowEffect } from './effects.mjs';
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -434,9 +435,13 @@
     let auxCtx = null;
 
     let holoImage = null;
-    let rainbowImage = null;
+    // rainbowImage removed as it's no longer used
     let currentStyleImage = null;
     let currentStyle = 'holographic';
+    
+    // NEW: Persistent state for rainbow particles
+    let rainbowState = {}; 
+
     let subtitles = [];
     let fontSize = 48;
     let textHeightPercent = 7;
@@ -450,12 +455,11 @@
     styleSelect.addEventListener('change', (e) => {
       currentStyle = e.target.value;
       
-      // Update current style image for holographic/rainbow
+      // Update current style image for holographic only
       if (currentStyle === 'holographic') {
         currentStyleImage = holoImage;
-      } else if (currentStyle === 'rainbow') {
-        currentStyleImage = rainbowImage;
-      }
+      } 
+      // Rainbow no longer uses an image, so we don't need to set currentStyleImage
       
       // Reset LED dots when switching to/from LED style
       if (currentStyle === 'led') {
@@ -629,20 +633,17 @@
       
       // LED style rendering
       if (currentStyle === 'led') {
-        // Detect dots if text changed or not yet detected
-        // Note: We use auxCtx here instead of creating a new canvas
         if (text !== lastLEDText || !ledDots) {
           ledDots = detectLEDDots({
             text: text,
             fontSize: fontSize,
             textHeightPercent: textHeightPercent,
             squareSize: 8,
-            auxCtx: auxCtx // <--- INJECTED SCRATCHPAD
+            auxCtx: auxCtx
           });
           lastLEDText = text;
         }
         
-        // Render LED dots
         if (ledDots && ledDots.length > 0) {
           renderLEDEffect(ctx, {
             dots: ledDots,
@@ -651,7 +652,16 @@
           });
         }
       } 
-      // Holographic/Rainbow style rendering
+      // NEW: Rainbow Style Rendering
+      else if (currentStyle === 'rainbow') {
+        renderRainbowEffect(ctx, {
+          text: text,
+          fontSize: fontSize,
+          textHeightPercent: textHeightPercent,
+          state: rainbowState // Pass persistent state
+        });
+      }
+      // Holographic style rendering
       else if (currentStyleImage) {
         renderHolographicEffect(ctx, {
           text: text,
@@ -659,7 +669,6 @@
           timestamp: timestamp,
           fontSize: fontSize,
           textHeightPercent: textHeightPercent
-          // Removed createCanvas
         });
       }
     }
@@ -682,22 +691,13 @@
           holoImage.src = '/images/holo.jpg';
         });
 
-        // Load rainbow image
-        rainbowImage = new Image();
-        rainbowImage.crossOrigin = 'anonymous';
-        await new Promise((resolve, reject) => {
-          rainbowImage.onload = resolve;
-          rainbowImage.onerror = reject;
-          rainbowImage.src = '/images/rdot.png';
-        });
+        // REMOVED: Rainbow image loading (no longer needed)
 
         // Set initial style image
         currentStyleImage = holoImage;
 
-        // ADD THIS LOGGING BLOCK HERE:
         console.log('=== Image Resolutions ===');
         console.log('Holographic image:', holoImage.width, 'x', holoImage.height);
-        console.log('Rainbow image:', rainbowImage.width, 'x', rainbowImage.height);
 
         // Get video token and load video
         const urlParams = new URLSearchParams(window.location.search)
@@ -720,7 +720,6 @@
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-                        // ADD THIS LOGGING:
             console.log('=== Canvas Resolution ===');
             console.log('Canvas:', canvas.width, 'x', canvas.height);
             // --- INITIALIZE SCRATCHPAD ONCE ---
@@ -730,10 +729,9 @@
             auxCtx = auxCanvas.getContext('2d');
             
             // Calculate dynamic font size range based on the SHORTER dimension
-            // This ensures proper sizing for both horizontal and vertical videos
             const shorterDimension = Math.min(canvas.width, canvas.height);
-            const minFontSize = Math.round(shorterDimension / 20);  // shorter / 20
-            const maxFontSize = Math.round(shorterDimension / 10);  // shorter / 10
+            const minFontSize = Math.round(shorterDimension / 20);  
+            const maxFontSize = Math.round(shorterDimension / 10);  
             
             // Update slider attributes
             fontSizeInput.min = minFontSize;
