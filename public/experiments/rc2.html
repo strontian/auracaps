@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimized Text Clipper</title>
+    <link href="https://fonts.googleapis.com/css2?family=Modak&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        canvas {
+            /* Checkerboard pattern to show transparency */
+            background-image: linear-gradient(45deg, #222 25%, transparent 25%), 
+                              linear-gradient(-45deg, #222 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #222 75%), 
+                              linear-gradient(-45deg, transparent 75%, #222 75%);
+            background-size: 20px 20px;
+            background-color: #111;
+            
+            border: 2px solid #333;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            width: 800px;
+            box-sizing: border-box;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .control-group input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            background: #444;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .value-display {
+            display: inline-block;
+            min-width: 40px;
+            text-align: right;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>Text Content:</label>
+            <input type="text" id="textInput" value="HELLO WORLD">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Fall Speed: <span class="value-display" id="animationSpeedValue">3</span>
+            </label>
+            <input type="range" id="animationSpeed" min="0" max="10" value="3" step="0.5">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                Dot Count: <span class="value-display" id="dotDensityValue">1000</span>
+            </label>
+            <input type="range" id="dotDensity" min="100" max="30000" value="1000" step="100">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Dot Size: <span class="value-display" id="dotSizeValue">4</span>px
+            </label>
+            <input type="range" id="dotSize" min="1" max="15" value="4" step="0.5">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                Color Band Zoom: <span class="value-display" id="zoomValue">1.5</span>x
+            </label>
+            <input type="range" id="zoom" min="0.5" max="3" value="1.5" step="0.1">
+        </div>
+    </div>
+    
+    <script>
+        // We use two canvases: 
+        // 1. offscreenCanvas (where we draw the dots freely and quickly)
+        // 2. mainCanvas (where we draw the text and clip the offscreen canvas into it)
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        
+        const offscreenCanvas = document.createElement('canvas');
+        const offCtx = offscreenCanvas.getContext('2d');
+
+        // Set dimensions
+        const WIDTH = 800;
+        const HEIGHT = 600;
+        
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+        offscreenCanvas.width = WIDTH;
+        offscreenCanvas.height = HEIGHT;
+        
+        // Elements
+        const textInput = document.getElementById('textInput');
+        const animationSpeedSlider = document.getElementById('animationSpeed');
+        const dotDensitySlider = document.getElementById('dotDensity');
+        const dotSizeSlider = document.getElementById('dotSize');
+        const zoomSlider = document.getElementById('zoom');
+        
+        const animationSpeedValue = document.getElementById('animationSpeedValue');
+        const dotDensityValue = document.getElementById('dotDensityValue');
+        const dotSizeValue = document.getElementById('dotSizeValue');
+        const zoomValue = document.getElementById('zoomValue');
+        
+        // Config
+        const rainbowColors = [0, 30, 60, 120, 180, 240, 270, 300];
+        let particles = [];
+        let colorOffset = 0; 
+        
+        // Text Cache
+        let cachedLines = [];
+        let cachedStartY = 0;
+        let cachedLineHeight = 0;
+
+        // --- OPTIMIZED WRAP TEXT ---
+        function calculateTextLayout() {
+            const text = textInput.value.toUpperCase();
+            const fontSize = 150;
+            const fontFamily = 'Modak';
+            const padding = 50;
+            const maxWidth = WIDTH - (padding * 2);
+
+            // Use main ctx for measuring
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            
+            const paragraphs = text.split('\n');
+            cachedLines = [];
+            
+            for (const paragraph of paragraphs) {
+                if (!paragraph.trim()) continue;
+                const words = paragraph.split(' ');
+                let currentLine = '';
+                
+                for (const word of words) {
+                    const testLine = currentLine ? `${currentLine} ${word}` : word;
+                    const metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width > maxWidth && currentLine) {
+                        cachedLines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                if (currentLine) cachedLines.push(currentLine);
+            }
+
+            // Calculate vertical centering once
+            cachedLineHeight = fontSize * 0.9;
+            const totalHeight = cachedLines.length * cachedLineHeight;
+            cachedStartY = (HEIGHT - totalHeight) / 2 + (cachedLineHeight/2);
+        }
+
+        // --- PARTICLE SYSTEM ---
+        class Particle {
+            constructor(startRandomY = true) {
+                this.reset(startRandomY);
+            }
+
+            reset(startRandomY = false) {
+                this.x = Math.random() * WIDTH;
+                this.y = startRandomY ? Math.random() * HEIGHT : -20;
+                this.speedVar = 0.8 + Math.random() * 0.4; 
+                this.sizeVar = 0.5 + Math.random() * 1.0; 
+                this.lightness = 40 + Math.random() * 20; 
+            }
+
+            update(speed) {
+                this.y += speed * this.speedVar;
+                if (this.y > HEIGHT) {
+                    this.reset(false);
+                }
+            }
+
+            draw(baseSize, zoom) {
+                // Diagonal Color Logic
+                const diagonalVal = (this.x + this.y) / (WIDTH + HEIGHT);
+                let huePos = (diagonalVal * zoom - colorOffset) % 1;
+                if (huePos < 0) huePos += 1;
+
+                const colorIndex = huePos * (rainbowColors.length - 1);
+                const lowerIndex = Math.floor(colorIndex);
+                const upperIndex = Math.ceil(colorIndex);
+                const blend = colorIndex - lowerIndex;
+                const hue = rainbowColors[lowerIndex] * (1 - blend) + rainbowColors[upperIndex] * blend;
+                
+                const size = baseSize * this.sizeVar;
+
+                // Optimization: fillRect is faster than arc
+                offCtx.fillStyle = `hsl(${hue}, 80%, ${this.lightness}%)`;
+                offCtx.fillRect(this.x, this.y, size, size);
+            }
+        }
+
+        function initParticles() {
+            const count = parseInt(dotDensitySlider.value);
+            if (particles.length > count) {
+                particles.length = count; // Fast truncate
+            } else {
+                while (particles.length < count) {
+                    particles.push(new Particle(true));
+                }
+            }
+        }
+
+        // --- MAIN ANIMATION LOOP ---
+        function animate() {
+            // 1. Draw Particles on OFFSCREEN canvas
+            // We clear the offscreen canvas so we have a fresh frame of just dots
+            offCtx.clearRect(0, 0, WIDTH, HEIGHT);
+            
+            const speed = parseFloat(animationSpeedSlider.value);
+            const size = parseFloat(dotSizeSlider.value);
+            const zoom = parseFloat(zoomSlider.value);
+
+            colorOffset += speed * 0.002; 
+            
+            // Draw all particles to offscreen buffer
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update(speed);
+                particles[i].draw(size, zoom);
+            }
+
+            // 2. Prepare MAIN canvas
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            
+            // 3. Draw The Text Mask (White)
+            ctx.save();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `150px Modak`; // Ensure font is set
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Use cached lines
+            cachedLines.forEach((line, i) => {
+                ctx.fillText(line, WIDTH / 2, cachedStartY + i * cachedLineHeight);
+            });
+
+            // 4. CLIP: Keep only where text is
+            ctx.globalCompositeOperation = 'source-in';
+
+            // 5. Draw the entire particle canvas at once
+            // This is the huge optimization. One draw call handles all clipping.
+            ctx.drawImage(offscreenCanvas, 0, 0);
+
+            // 6. Restore and Outline
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'miter';
+            ctx.miterLimit = 2;
+            
+            cachedLines.forEach((line, i) => {
+                ctx.strokeText(line, WIDTH / 2, cachedStartY + i * cachedLineHeight);
+            });
+
+            ctx.restore();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        function updateUI() {
+            animationSpeedValue.textContent = animationSpeedSlider.value;
+            dotDensityValue.textContent = dotDensitySlider.value;
+            dotSizeValue.textContent = dotSizeSlider.value;
+            zoomValue.textContent = zoomSlider.value;
+            initParticles();
+        }
+        
+        // Listeners
+        animationSpeedSlider.addEventListener('input', updateUI);
+        dotDensitySlider.addEventListener('input', updateUI);
+        dotSizeSlider.addEventListener('input', updateUI);
+        zoomSlider.addEventListener('input', updateUI);
+        
+        textInput.addEventListener('input', () => {
+            calculateTextLayout();
+        });
+
+        // Initialize
+        document.fonts.ready.then(function() {
+            calculateTextLayout();
+            initParticles();
+            animate();
+        });
+
+        // Initial calc in case font loads instantly
+        calculateTextLayout();
+        initParticles();
+
+    </script>
+</body>
+</html>

@@ -141,6 +141,16 @@
       pointer-events: none;
     }
 
+    #three-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: none;
+    }
+
     #loading {
       position: absolute;
       top: 50%;
@@ -374,6 +384,7 @@
         <div id="video-wrapper">
           <video autoplay id="video" crossorigin="anonymous" controls></video>
           <canvas id="canvas"></canvas>
+          <div id="three-container"></div>
           <div id="loading">Loading...</div>
         </div>
       </div>
@@ -387,6 +398,7 @@
             <option value="holographic">Holographic</option>
             <option value="rainbow">Rainbow</option>
             <option value="led">LED</option>
+            <option value="3d-galaxy">3D Galaxy</option>
           </select>
         </div>
         
@@ -414,8 +426,19 @@
       <a href="mailto:hello@auracaptions.com?subject=Aura Support">hello@auracaptions.com</a>
     </footer>
   </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
 <script type="module">
     import { renderHolographicEffect, detectLEDDots, renderLEDEffect } from './effects.mjs';
+    import { initThreeJS, update3DText, clear3DText, render3DScene, isThreeInitialized } from './effects3d.mjs';
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -428,6 +451,7 @@
     const textHeightValue = document.getElementById('textHeightValue');
     const exportBtn = document.getElementById('exportBtn');
     const exportStatus = document.getElementById('exportStatus');
+    const threeContainer = document.getElementById('three-container');
 
     // Scratchpad variables
     let auxCanvas = null;
@@ -443,24 +467,38 @@
     let animationFrameId = null;
     let ledDots = null;
     let lastLEDText = null;
+    let lastRenderedText = null;
     const urlParams = new URLSearchParams(window.location.search)
     let videoId = urlParams.get('id')
 
     // Update style selection
-    styleSelect.addEventListener('change', (e) => {
+    styleSelect.addEventListener('change', async (e) => {
       currentStyle = e.target.value;
       
-      // Update current style image for holographic/rainbow
-      if (currentStyle === 'holographic') {
-        currentStyleImage = holoImage;
-      } else if (currentStyle === 'rainbow') {
-        currentStyleImage = rainbowImage;
-      }
-      
-      // Reset LED dots when switching to/from LED style
-      if (currentStyle === 'led') {
-        lastLEDText = null;
-        ledDots = null;
+      // Show/hide appropriate renderers
+      if (currentStyle === '3d-galaxy') {
+        canvas.style.display = 'none';
+        threeContainer.style.display = 'block';
+        if (!isThreeInitialized()) {
+          await initThreeJS(threeContainer, video.videoWidth, video.videoHeight);
+        }
+        lastRenderedText = null; // Force update on style change
+      } else {
+        canvas.style.display = 'block';
+        threeContainer.style.display = 'none';
+        
+        // Update current style image for holographic/rainbow
+        if (currentStyle === 'holographic') {
+          currentStyleImage = holoImage;
+        } else if (currentStyle === 'rainbow') {
+          currentStyleImage = rainbowImage;
+        }
+        
+        // Reset LED dots when switching to/from LED style
+        if (currentStyle === 'led') {
+          lastLEDText = null;
+          ledDots = null;
+        }
       }
       
       // Render immediately if video is paused
@@ -480,13 +518,18 @@
         ledDots = null;
       }
       
+      // Force 3D text update
+      if (currentStyle === '3d-galaxy') {
+        lastRenderedText = null;
+      }
+      
       // Render immediately if video is paused
       if (video.paused && !animationFrameId) {
         renderSingleFrame();
       }
     });
 
-    // Update text height (inverted: 100 = top, 0 = bottom)
+    // Update text height
     textHeightInput.addEventListener('input', (e) => {
       textHeightPercent = parseInt(e.target.value);
       textHeightValue.textContent = textHeightPercent + '%';
@@ -495,6 +538,11 @@
       if (currentStyle === 'led') {
         lastLEDText = null;
         ledDots = null;
+      }
+      
+      // Force 3D text update for position change
+      if (currentStyle === '3d-galaxy') {
+        lastRenderedText = null;
       }
       
       // Render immediately if video is paused
@@ -535,10 +583,10 @@
         // Poll for file completion
         let fileFound = false;
         let pollAttempts = 0;
-        const maxAttempts = 120; // 2 minutes max (120 * 1 second)
+        const maxAttempts = 120;
         
         while (!fileFound && pollAttempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          await new Promise(resolve => setTimeout(resolve, 1000));
           pollAttempts++;
           
           try {
@@ -552,18 +600,15 @@
                 exportStatus.textContent = 'Export complete! Redirecting...';
                 exportStatus.style.color = '#86efac';
 
-                // Redirect after brief delay
                 setTimeout(() => {
                   window.location.href = `/download.html?id=${checkData.captionedVideoId}`;
                 }, 1500);
               } else {
-                // Update status with attempt count
                 exportStatus.textContent = `Processing video... (${pollAttempts}s)`;
               }
             }
           } catch (checkError) {
             console.error('Check error:', checkError);
-            // Continue polling even if check fails
           }
         }
         
@@ -615,52 +660,60 @@
       return null;
     }
 
-    // Render a single frame (for when video is paused)
+    // Render a single frame
     function renderSingleFrame() {
       const timestamp = video.currentTime;
       const text = getSubtitleAtTime(timestamp);
       
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      if (!text) {
-        return;
-      }
-      
-      // LED style rendering
-      if (currentStyle === 'led') {
-        // Detect dots if text changed or not yet detected
-        // Note: We use auxCtx here instead of creating a new canvas
-        if (text !== lastLEDText || !ledDots) {
-          ledDots = detectLEDDots({
-            text: text,
-            fontSize: fontSize,
-            textHeightPercent: textHeightPercent,
-            squareSize: 8,
-            auxCtx: auxCtx // <--- INJECTED SCRATCHPAD
-          });
-          lastLEDText = text;
+      if (currentStyle === '3d-galaxy') {
+        // Update 3D text only if it changed
+        if (text && text !== lastRenderedText) {
+          update3DText(text, fontSize, textHeightPercent, video.videoWidth, video.videoHeight);
+          lastRenderedText = text;
+        } else if (!text && lastRenderedText) {
+          clear3DText();
+          lastRenderedText = null;
+        }
+        render3DScene();
+      } else {
+        // Clear canvas for 2D styles
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (!text) {
+          return;
         }
         
-        // Render LED dots
-        if (ledDots && ledDots.length > 0) {
-          renderLEDEffect(ctx, {
-            dots: ledDots,
+        // LED style rendering
+        if (currentStyle === 'led') {
+          if (text !== lastLEDText || !ledDots) {
+            ledDots = detectLEDDots({
+              text: text,
+              fontSize: fontSize,
+              textHeightPercent: textHeightPercent,
+              squareSize: 8,
+              auxCtx: auxCtx
+            });
+            lastLEDText = text;
+          }
+          
+          if (ledDots && ledDots.length > 0) {
+            renderLEDEffect(ctx, {
+              dots: ledDots,
+              fontSize: fontSize,
+              squareSize: 8
+            });
+          }
+        } 
+        // Holographic/Rainbow style rendering
+        else if (currentStyleImage) {
+          renderHolographicEffect(ctx, {
+            text: text,
+            styleImage: currentStyleImage,
+            timestamp: timestamp,
             fontSize: fontSize,
-            squareSize: 8
+            textHeightPercent: textHeightPercent,
           });
         }
-      } 
-      // Holographic/Rainbow style rendering
-      else if (currentStyleImage) {
-        renderHolographicEffect(ctx, {
-          text: text,
-          styleImage: currentStyleImage,
-          timestamp: timestamp,
-          fontSize: fontSize,
-          textHeightPercent: textHeightPercent
-          // Removed createCanvas
-        });
       }
     }
 
@@ -688,16 +741,11 @@
         await new Promise((resolve, reject) => {
           rainbowImage.onload = resolve;
           rainbowImage.onerror = reject;
-          rainbowImage.src = '/images/rdot.png';
+          rainbowImage.src = '/images/rainbow.jpg';
         });
 
         // Set initial style image
         currentStyleImage = holoImage;
-
-        // ADD THIS LOGGING BLOCK HERE:
-        console.log('=== Image Resolutions ===');
-        console.log('Holographic image:', holoImage.width, 'x', holoImage.height);
-        console.log('Rainbow image:', rainbowImage.width, 'x', rainbowImage.height);
 
         // Get video token and load video
         const urlParams = new URLSearchParams(window.location.search)
@@ -713,33 +761,26 @@
         const tokenData = await tokenResponse.json();
         video.src = tokenData
 
-        // Inside init(), after video.onloadedmetadata
         await new Promise((resolve) => {
           video.onloadedmetadata = () => {
             // Match canvas to video dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-                        // ADD THIS LOGGING:
-            console.log('=== Canvas Resolution ===');
-            console.log('Canvas:', canvas.width, 'x', canvas.height);
-            // --- INITIALIZE SCRATCHPAD ONCE ---
+            // Initialize scratchpad
             auxCanvas = document.createElement('canvas');
             auxCanvas.width = video.videoWidth;
             auxCanvas.height = video.videoHeight;
             auxCtx = auxCanvas.getContext('2d');
             
-            // Calculate dynamic font size range based on the SHORTER dimension
-            // This ensures proper sizing for both horizontal and vertical videos
+            // Calculate dynamic font size range
             const shorterDimension = Math.min(canvas.width, canvas.height);
-            const minFontSize = Math.round(shorterDimension / 20);  // shorter / 20
-            const maxFontSize = Math.round(shorterDimension / 10);  // shorter / 10
+            const minFontSize = Math.round(shorterDimension / 20);
+            const maxFontSize = Math.round(shorterDimension / 10);
             
-            // Update slider attributes
             fontSizeInput.min = minFontSize;
             fontSizeInput.max = maxFontSize;
             
-            // Set initial font size to middle of range
             const defaultFontSize = Math.round((minFontSize + maxFontSize) / 2);
             fontSizeInput.value = defaultFontSize;
             fontSize = defaultFontSize;
@@ -748,6 +789,7 @@
             resolve();
           };
         });
+        
         loading.style.display = 'none';
         
         // Start rendering when video plays

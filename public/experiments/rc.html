@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Falling Rainbow Gradient Dots</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        canvas {
+            border: 2px solid #333;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            background: #1a1a1a;
+        }
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            width: 800px;
+            box-sizing: border-box;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .value-display {
+            display: inline-block;
+            min-width: 40px;
+            text-align: right;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="rainbowCanvas"></canvas>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>
+                Fall Speed: <span class="value-display" id="animationSpeedValue">2</span>
+            </label>
+            <input type="range" id="animationSpeed" min="0" max="10" value="2" step="0.5">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                Dot Count (Density): <span class="value-display" id="dotDensityValue">1000</span>
+            </label>
+            <input type="range" id="dotDensity" min="100" max="15000" value="1000" step="100">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Dot Size: <span class="value-display" id="dotSizeValue">4</span>px
+            </label>
+            <input type="range" id="dotSize" min="1" max="15" value="4" step="0.5">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                Color Band Zoom: <span class="value-display" id="zoomValue">1</span>x
+            </label>
+            <input type="range" id="zoom" min="0.5" max="10" value="1" step="0.1">
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('rainbowCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = 800;
+        canvas.height = 600;
+        
+        // Elements
+        const animationSpeedSlider = document.getElementById('animationSpeed');
+        const dotDensitySlider = document.getElementById('dotDensity');
+        const dotSizeSlider = document.getElementById('dotSize');
+        const zoomSlider = document.getElementById('zoom');
+        
+        const animationSpeedValue = document.getElementById('animationSpeedValue');
+        const dotDensityValue = document.getElementById('dotDensityValue');
+        const dotSizeValue = document.getElementById('dotSizeValue');
+        const zoomValue = document.getElementById('zoomValue');
+        
+        // Rainbow colors (HSL hue values)
+        const rainbowColors = [0, 30, 60, 120, 180, 240, 270, 300];
+        
+        // State
+        let particles = [];
+        let colorOffset = 0; // Tracks the movement of the color bands
+        
+        class Particle {
+            constructor(startRandomY = true) {
+                this.reset(startRandomY);
+            }
+
+            reset(startRandomY = false) {
+                this.x = Math.random() * canvas.width;
+                // If initializing, place randomly anywhere. 
+                // If recycling, place at top (above view).
+                this.y = startRandomY ? Math.random() * canvas.height : -10;
+                
+                // Individual variation
+                this.speedVar = 0.8 + Math.random() * 0.4; // 80% to 120% speed
+                this.sizeVar = 0.5 + Math.random() * 1.0;  // Size variation
+                this.lightness = 40 + Math.random() * 20;  // 40-60% lightness
+            }
+
+            update(speed) {
+                this.y += speed * this.speedVar;
+                if (this.y > canvas.height) {
+                    this.reset(false); // Recycle to top
+                }
+            }
+
+            draw(baseSize, zoom) {
+                // Calculate Diagonal Position for Color
+                // (x + y) creates diagonal lines ///
+                // adding colorOffset makes the bands move
+                const diagonalVal = (this.x + this.y) / (canvas.width + canvas.height);
+                
+                // Adjust frequency with zoom and add global movement offset
+                let huePos = (diagonalVal * zoom - colorOffset) % 1;
+                
+                // Wrap negative values correctly
+                if (huePos < 0) huePos += 1;
+
+                // Map to rainbow array
+                const colorIndex = huePos * (rainbowColors.length - 1);
+                const lowerIndex = Math.floor(colorIndex);
+                const upperIndex = Math.ceil(colorIndex);
+                const blend = colorIndex - lowerIndex;
+                
+                // Interpolate hue
+                const hue = rainbowColors[lowerIndex] * (1 - blend) + 
+                           rainbowColors[upperIndex] * blend;
+                
+                const size = baseSize * this.sizeVar;
+
+                ctx.fillStyle = `hsl(${hue}, 80%, ${this.lightness}%)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            const count = parseInt(dotDensitySlider.value);
+            // If we have too many, trim. If too few, add.
+            if (particles.length > count) {
+                particles = particles.slice(0, count);
+            } else {
+                while (particles.length < count) {
+                    particles.push(new Particle(true));
+                }
+            }
+        }
+
+        function animate() {
+            // Clear canvas with slight transparency for potential trails (optional, currently solid)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Get slider values
+            const speed = parseFloat(animationSpeedSlider.value);
+            const size = parseFloat(dotSizeSlider.value);
+            const zoom = parseFloat(zoomSlider.value);
+
+            // Update Color Band Position
+            // Moving the offset makes the bands look like they are sliding
+            colorOffset += speed * 0.002; 
+
+            particles.forEach(p => {
+                p.update(speed);
+                p.draw(size, zoom);
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Update display and particle count
+        function updateUI() {
+            animationSpeedValue.textContent = animationSpeedSlider.value;
+            dotDensityValue.textContent = dotDensitySlider.value;
+            dotSizeValue.textContent = dotSizeSlider.value;
+            zoomValue.textContent = zoomSlider.value;
+            
+            // Re-init particles to match new count
+            initParticles();
+        }
+        
+        // Listeners
+        animationSpeedSlider.addEventListener('input', updateUI);
+        dotDensitySlider.addEventListener('input', updateUI);
+        dotSizeSlider.addEventListener('input', updateUI);
+        zoomSlider.addEventListener('input', updateUI);
+        
+        // Start
+        initParticles();
+        animate();
+    </script>
+</body>
+</html>
