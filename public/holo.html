@@ -372,7 +372,7 @@
       
       <div id="video-container">
         <div id="video-wrapper">
-          <video autoplay id="video" crossorigin="anonymous" controls></video>
+          <video loop autoplay id="video" crossorigin="anonymous" controls></video>
           <canvas id="canvas"></canvas>
           <div id="loading">Loading...</div>
         </div>
@@ -658,7 +658,8 @@
           text: text,
           fontSize: fontSize,
           textHeightPercent: textHeightPercent,
-          state: rainbowState // Pass persistent state
+          state: rainbowState,
+          auxCanvas: auxCanvas
         });
       }
       // Holographic style rendering

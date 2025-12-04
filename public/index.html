@@ -27,7 +27,6 @@
     plausible.init()
     </script>
 
-
     <title>AuraCaptions - Artistic Video Captions</title>
     
     <style>
@@ -35,6 +34,13 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+        
+        @font-face {
+            font-family: 'Modak';
+            src: url('fonts/Modak-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
         }
         
         body {
@@ -53,21 +59,10 @@
             text-align: center;
         }
         
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
+        #titleCanvas {
+            max-width: 100%;
+            height: auto;
             margin-bottom: 1rem;
-            background: linear-gradient(45deg, #fff, #f0f0f0, #fff);
-            background-size: 200% 200%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: shimmer 3s ease-in-out infinite;
-        }
-        
-        @keyframes shimmer {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
         }
         
         .tagline {
@@ -120,10 +115,6 @@
         }
         
         @media (max-width: 768px) {
-            h1 {
-                font-size: 2.5rem;
-            }
-            
             .tagline {
                 font-size: 1.2rem;
             }
@@ -163,7 +154,6 @@
                 window.location.href = '/upload.html';
             })
             .catch(error => {
-                statusMsg.textContent = 'Sign in failed. Please try again.';
                 console.error('Login error:', error);
             });
         }
@@ -171,7 +161,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Aura Captions</h1>
+        <canvas id="titleCanvas"></canvas>
         <h2></h2>
         <p class="tagline"></p>
         
@@ -201,5 +191,54 @@
         
         
     </div>
+    
+    <script type="module">
+        import { renderRainbowEffect } from './effects.mjs';
+        
+        const canvas = document.getElementById('titleCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        const canvasWidth = 800;
+        const canvasHeight = 200;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        
+        // Create auxiliary canvas for rainbow effect
+        const auxCanvas = document.createElement('canvas');
+        auxCanvas.width = canvasWidth;
+        auxCanvas.height = canvasHeight;
+        
+        // State object to maintain animation state
+        const state = {};
+        
+        // Load the Modak font
+        const font = new FontFace('Modak', 'url(fonts/Modak-Regular.ttf)');
+        
+        font.load().then(() => {
+            document.fonts.add(font);
+            animate();
+        }).catch(err => {
+            console.error('Font loading failed:', err);
+            // Try to animate anyway
+            animate();
+        });
+        
+        function animate() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Render rainbow effect
+            renderRainbowEffect(ctx, {
+                text: 'Aura Captions',
+                fontSize: 80,
+                textHeightPercent: 50,
+                state: state,
+                auxCanvas: auxCanvas
+            });
+            
+            requestAnimationFrame(animate);
+        }
+    </script>
 </body>
 </html>

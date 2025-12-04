@@ -32,29 +32,20 @@ export function wrapText(ctx, text, maxWidth, fontFamily, fontSize) {
   return allLines;
 }
 
-// effects.js
-
-// ... (Your existing wrapText and calculateTextPosition functions remain here) ...
-
-// effects.js
-
-// ... keep wrapText and calculateTextPosition as they were ...
-
-const RAINBOW_CONFIG = {
-  speed: 1,
-  count: 30000, 
-  zoom: 3,
-  size: 20,
-  colors: [0, 30, 60, 120, 180, 240, 270, 300]
-};
+// effects.mjs
 
 export function renderRainbowEffect(ctx, opts) {
   const {
     text,
     fontSize,
     textHeightPercent,
-    state = {} 
+    state = {},
+    auxCanvas // <--- Now required
   } = opts;
+
+  if (!auxCanvas) {
+    throw new Error("renderRainbowEffect requires an 'auxCanvas' argument.");
+  }
 
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
@@ -62,14 +53,13 @@ export function renderRainbowEffect(ctx, opts) {
   const padding = 50;
   const maxWidth = canvasWidth - (padding * 2) - 40;
 
-  // --- OPTIMIZATION 1: Initialize State & Offscreen Canvas ---
+  // Get the context of the passed scratchpad canvas
+  const offCtx = auxCanvas.getContext('2d');
+
+  // --- OPTIMIZATION 1: Initialize State (Particles only) ---
   if (!state.particles) {
     state.particles = [];
     state.colorOffset = 0;
-    
-    // Create a persistent offscreen canvas inside the state
-    state.offCanvas = document.createElement('canvas');
-    state.offCtx = state.offCanvas.getContext('2d');
     
     state.createParticle = (startRandomY = true) => ({
       x: Math.random() * canvasWidth,
@@ -79,16 +69,21 @@ export function renderRainbowEffect(ctx, opts) {
       lightness: 40 + Math.random() * 20
     });
 
+    const RAINBOW_CONFIG = {
+      speed: 2,
+      count: 30000, 
+      zoom: 3,
+      size: 20,
+      colors: [0, 30, 60, 120, 180, 240, 270, 300]
+    };
+    state.config = RAINBOW_CONFIG;
+
     for (let i = 0; i < RAINBOW_CONFIG.count; i++) {
       state.particles.push(state.createParticle(true));
     }
   }
 
-  // Ensure offscreen canvas matches main canvas size (in case of resize)
-  if (state.offCanvas.width !== canvasWidth || state.offCanvas.height !== canvasHeight) {
-    state.offCanvas.width = canvasWidth;
-    state.offCanvas.height = canvasHeight;
-  }
+  const RAINBOW_CONFIG = state.config;
 
   // --- OPTIMIZATION 2: Memoize Text Layout ---
   // Only recalculate wrapping if text or font size changes
@@ -105,15 +100,13 @@ export function renderRainbowEffect(ctx, opts) {
     canvasHeight, lines.length, fontSize, textHeightPercent
   );
 
-  // --- STEP 1: Draw Particles to Offscreen Canvas (Cheap) ---
-  const { offCtx, offCanvas } = state;
+  // --- STEP 1: Draw Particles to the passed AUX Canvas ---
   
-  // Clear only the needed area? No, clear all for safety.
+  // Important: Clear the aux canvas first!
   offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
   
   state.colorOffset += RAINBOW_CONFIG.speed * 0.002;
 
-  // Batch draw particles without any composition logic
   state.particles.forEach(p => {
     p.y += RAINBOW_CONFIG.speed * p.speedVar;
     if (p.y > canvasHeight) {
@@ -156,9 +149,9 @@ export function renderRainbowEffect(ctx, opts) {
   });
 
   // --- STEP 3: Composite ONCE ---
-  // We draw the entire offscreen canvas onto the text in one operation
+  // Draw the populated auxCanvas onto the text
   ctx.globalCompositeOperation = 'source-in';
-  ctx.drawImage(offCanvas, 0, 0);
+  ctx.drawImage(auxCanvas, 0, 0);
 
   // --- STEP 4: Outline ---
   ctx.globalCompositeOperation = 'source-over';
