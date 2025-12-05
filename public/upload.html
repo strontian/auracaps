@@ -289,7 +289,7 @@
 
         async function loadFFmpeg() {
             if (loaded) return;
-            showProcessing('Loading audio extractor...');
+            console.log('[FFmpeg] Starting preload...');
             ffmpeg = new FFmpeg();
             ffmpeg.on('log', ({ message }) => {
                 console.log(message);
@@ -306,10 +306,15 @@
                 // Omit workerURL for single-thread mode
             });
             loaded = true;
+            console.log('[FFmpeg] Preload complete');
         }
 
         function initializeApp() {
             initializeEventHandlers();
+            // Start loading FFmpeg immediately in the background
+            loadFFmpeg().catch(error => {
+                console.error('[FFmpegLoadError] Failed to preload:', error);
+            });
         }
 
         function initializeEventHandlers() {
@@ -382,6 +387,7 @@
                 // Create video entry first to get video ID
                 const videoId = await createVideoEntry(file.name);
 
+                // Wait for FFmpeg to load if it hasn't finished yet
                 await loadFFmpeg();
 
                 showProcessing('Extracting audio...');
