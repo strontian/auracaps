@@ -4,10 +4,10 @@ import { transcribe } from '../services/deepgram.mjs'
 import { getUploadUrl } from '../services/r2_new.mjs'
 import { srt } from "@deepgram/captions";
 import { promises as fs } from 'fs'
-import { uploadFile, downloadFile, getViewUrl, checkFileExists } from '..//services/r2_new.mjs'
+import { uploadFile, downloadFile, getViewUrl } from '..//services/r2_new.mjs'
 import { execFile } from 'child_process'
 import ffprobePath from 'ffprobe-static'
-import { generateStyledCaptions } from '../../node-ffmpeg-demo/caption_ffmpeg.mjs'; // Adjust path to where you save the 2nd file
+import { generateStyledCaptions } from '../services/local_caption.mjs'; 
 
 import crypto from 'crypto'
 
