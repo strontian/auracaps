@@ -4,7 +4,8 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
-  ListObjectsV2Command
+  ListObjectsV2Command,
+  DeleteObjectCommand
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import fs from 'fs'
@@ -116,6 +117,22 @@ export async function listObjectsPrefix(bucketName, prefix) {
     return data.Contents ? data.Contents: []
   } catch (error) {
     console.error("Error retrieving bucket contents:", error);
+    throw error;
+  }
+}
+
+export async function deleteFile(bucketName, fileName) {
+  const params = {
+    Bucket: bucketName,
+    Key: fileName
+  };
+
+  try {
+    await S3.send(new DeleteObjectCommand(params));
+    console.log("File deleted successfully.");
+    return true;
+  } catch (error) {
+    console.error("Error deleting file:", error);
     throw error;
   }
 }

@@ -232,6 +232,16 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
         .error-message {
             color: #fca5a5;
             background: rgba(239, 68, 68, 0.1);
@@ -358,18 +368,21 @@
                 actions = `
                     <a href="/download.html?id=${video.captionedVideoId}" class="btn btn-primary">View</a>
                     <a href="/download.html?id=${video.captionedVideoId}" class="btn btn-secondary" download>Download</a>
+                    <button class="btn btn-danger" onclick="deleteVideo(${video.id}, '${escapeHtml(video.fileName)}')">Delete</button>
                 `;
             } else if (video.hasTranscript) {
                 // Video has transcript but no captions yet - ready to caption
                 statusBadge = '<div class="status-badge status-ready">⚡ Ready to Caption</div>';
                 actions = `
                     <a href="/holo.html?id=${video.id}" class="btn btn-primary">Create Captions</a>
+                    <button class="btn btn-danger" onclick="deleteVideo(${video.id}, '${escapeHtml(video.fileName)}')">Delete</button>
                 `;
             } else {
                 // Still processing transcript
                 statusBadge = '<div class="status-badge status-processing">⏳ Transcribing...</div>';
                 actions = `
                     <button class="btn btn-secondary" disabled>Processing</button>
+                    <button class="btn btn-danger" onclick="deleteVideo(${video.id}, '${escapeHtml(video.fileName)}')">Delete</button>
                 `;
             }
 
@@ -399,6 +412,29 @@
 
             loadingContainer.style.display = 'none';
             errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        async function deleteVideo(videoId, fileName) {
+            if (!confirm(`Are you sure you want to delete "${fileName}"?\n\nThis will permanently delete the video, its transcript, and any captioned versions.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/videos/${videoId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+
+                // Reload the videos list
+                loadVideos();
+            } catch (error) {
+                console.error('Error deleting video:', error);
+                showError(`Failed to delete video: ${error.message}`);
+            }
         }
 
         // Initialize

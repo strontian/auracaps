@@ -32,7 +32,50 @@ export function wrapText(ctx, text, maxWidth, fontFamily, fontSize) {
   return allLines;
 }
 
-// effects.mjs
+export function calculateTextPosition(canvasHeight, lineCount, fontSize, textHeightPercent) {
+  const lineHeight = fontSize * 1.2;
+  const totalTextHeight = lineCount * lineHeight;
+  const textVerticalRange = canvasHeight - totalTextHeight - fontSize * 0.8;
+  const invertedPercent = 100 - textHeightPercent;
+  const startY = (textVerticalRange * invertedPercent / 100) + fontSize * 1.6;
+  
+  return { startY, lineHeight };
+}
+
+/**
+ * Draws the text in white to act as a stencil/mask.
+ * Returns the layout data (lines, position) so the caller can draw strokes later if needed.
+ */
+export function stampText(ctx, text, fontSize, fontFamily, textHeightPercent) {
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const padding = 50;
+  const maxWidth = canvasWidth - (padding * 2) - 40;
+  
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  const lines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
+  
+  const position = calculateTextPosition(
+    canvasHeight, lines.length, fontSize, textHeightPercent
+  );
+
+  ctx.save();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  lines.forEach((line, i) => {
+    const lineWidth = ctx.measureText(line).width;
+    const lineX = (canvasWidth - lineWidth) / 2;
+    const lineY = position.startY + i * position.lineHeight;
+    ctx.fillText(line, lineX, lineY);
+  });
+  ctx.restore();
+
+  // Return layout data for subsequent stroking/outlining
+  return { lines, position };
+}
 
 export function renderRainbowEffect(ctx, opts) {
   const {
@@ -40,7 +83,7 @@ export function renderRainbowEffect(ctx, opts) {
     fontSize,
     textHeightPercent,
     state = {},
-    auxCanvas // <--- Now required
+    auxCanvas
   } = opts;
 
   if (!auxCanvas) {
@@ -50,13 +93,11 @@ export function renderRainbowEffect(ctx, opts) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
   const fontFamily = 'Modak';
-  const padding = 50;
-  const maxWidth = canvasWidth - (padding * 2) - 40;
 
   // Get the context of the passed scratchpad canvas
   const offCtx = auxCanvas.getContext('2d');
 
-  // --- OPTIMIZATION 1: Initialize State (Particles only) ---
+  // --- Initialize Particle State (No Text Memoization) ---
   if (!state.particles) {
     state.particles = [];
     state.colorOffset = 0;
@@ -85,24 +126,7 @@ export function renderRainbowEffect(ctx, opts) {
 
   const RAINBOW_CONFIG = state.config;
 
-  // --- OPTIMIZATION 2: Memoize Text Layout ---
-  // Only recalculate wrapping if text or font size changes
-  if (state.lastText !== text || state.lastFontSize !== fontSize || state.lastWidth !== canvasWidth) {
-    ctx.font = `${fontSize}px ${fontFamily}`;
-    state.cachedLines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
-    state.lastText = text;
-    state.lastFontSize = fontSize;
-    state.lastWidth = canvasWidth;
-  }
-
-  const lines = state.cachedLines;
-  const position = calculateTextPosition(
-    canvasHeight, lines.length, fontSize, textHeightPercent
-  );
-
   // --- STEP 1: Draw Particles to the passed AUX Canvas ---
-  
-  // Important: Clear the aux canvas first!
   offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
   
   state.colorOffset += RAINBOW_CONFIG.speed * 0.002;
@@ -134,50 +158,35 @@ export function renderRainbowEffect(ctx, opts) {
     offCtx.fillRect(p.x, p.y, size, size);
   });
 
-  // --- STEP 2: Draw Text on Main Canvas ---
+  // --- STEP 2: Stamp the Text (Create Stencil) ---
+  // We capture the layout data returned by stampText to use for the stroke later
+  const layout = stampText(ctx, text, fontSize, fontFamily, textHeightPercent);
+
+  // --- STEP 3: Composite Particles into Text ---
   ctx.save();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `${fontSize}px ${fontFamily}`;
-  ctx.textAlign = 'left'; 
-  ctx.textBaseline = 'alphabetic';
-
-  lines.forEach((line, i) => {
-    const lineWidth = ctx.measureText(line).width;
-    const lineX = (canvasWidth - lineWidth) / 2;
-    const lineY = position.startY + i * position.lineHeight;
-    ctx.fillText(line, lineX, lineY);
-  });
-
-  // --- STEP 3: Composite ONCE ---
-  // Draw the populated auxCanvas onto the text
   ctx.globalCompositeOperation = 'source-in';
   ctx.drawImage(auxCanvas, 0, 0);
+  ctx.restore();
 
-  // --- STEP 4: Outline ---
+  // --- STEP 4: Draw Outline (using cached layout) ---
+  ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   ctx.strokeStyle = '#FFFFFF';
   ctx.lineWidth = 4;
   ctx.lineJoin = 'miter';
   ctx.miterLimit = 2;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 
-  lines.forEach((line, i) => {
+  layout.lines.forEach((line, i) => {
     const lineWidth = ctx.measureText(line).width;
     const lineX = (canvasWidth - lineWidth) / 2;
-    const lineY = position.startY + i * position.lineHeight;
+    const lineY = layout.position.startY + i * layout.position.lineHeight;
     ctx.strokeText(line, lineX, lineY);
   });
 
   ctx.restore();
-}
-
-export function calculateTextPosition(canvasHeight, lineCount, fontSize, textHeightPercent) {
-  const lineHeight = fontSize * 1.2;
-  const totalTextHeight = lineCount * lineHeight;
-  const textVerticalRange = canvasHeight - totalTextHeight - fontSize * 0.8;
-  const invertedPercent = 100 - textHeightPercent;
-  const startY = (textVerticalRange * invertedPercent / 100) + fontSize * 1.6;
-  
-  return { startY, lineHeight };
 }
 
 export function renderHolographicEffect(ctx, opts) {
@@ -192,32 +201,11 @@ export function renderHolographicEffect(ctx, opts) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
   const fontFamily = 'Modak';
-  const padding = 50;
-  const maxWidth = canvasWidth - (padding * 2) - 40;
   
-  ctx.font = `${fontSize}px ${fontFamily}`;
-  const lines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
-  
-  const position = calculateTextPosition(
-    canvasHeight, lines.length, fontSize, textHeightPercent
-  );
+  // --- STEP 1: Stamp the Text (Create Stencil) ---
+  const layout = stampText(ctx, text, fontSize, fontFamily, textHeightPercent);
 
-  ctx.save();
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `${fontSize}px ${fontFamily}`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-
-  lines.forEach((line, i) => {
-    const lineWidth = ctx.measureText(line).width;
-    const lineX = (canvasWidth - lineWidth) / 2;
-    const lineY = position.startY + i * position.lineHeight;
-    ctx.fillText(line, lineX, lineY);
-  });
-
-  ctx.globalCompositeOperation = 'source-in';
-
+  // --- STEP 2: Calculate Background Scroll ---
   const animDuration = 100;
   const progress = (timestamp % (animDuration * 2)) / animDuration;
   const yDir = progress <= 1 ? progress : 2 - progress;
@@ -242,23 +230,32 @@ export function renderHolographicEffect(ctx, opts) {
   const sw = canvasWidth / scaleX;
   const sh = canvasHeight / scaleY;
 
+  // --- STEP 3: Composite Image into Text ---
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-in';
+  
   ctx.drawImage(
     styleImage, 
     sx, sy, sw, sh, 
     0, 0, canvasWidth, canvasHeight
   );
+  ctx.restore();
 
+  // --- STEP 4: Draw Outline (using cached layout) ---
+  ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 4;
   ctx.lineJoin = 'miter';
   ctx.miterLimit = 2;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 
-  lines.forEach((line, i) => {
+  layout.lines.forEach((line, i) => {
     const lineWidth = ctx.measureText(line).width;
     const lineX = (canvasWidth - lineWidth) / 2;
-    const lineY = position.startY + i * position.lineHeight;
+    const lineY = layout.position.startY + i * layout.position.lineHeight;
     ctx.strokeText(line, lineX, lineY);
   });
 
@@ -277,27 +274,15 @@ export function detectLEDDots(opts) {
   const canvasWidth = auxCtx.canvas.width;
   const canvasHeight = auxCtx.canvas.height;
   const fontFamily = 'Tinos';
-  const padding = 50;
-  const maxWidth = canvasWidth - (padding * 2) - 40;
 
+  // --- STEP 1: Prepare Aux Canvas ---
   auxCtx.clearRect(0, 0, canvasWidth, canvasHeight);
   
-  const lines = wrapText(auxCtx, text, maxWidth, fontFamily, fontSize);
-  const position = calculateTextPosition(
-    canvasHeight, lines.length, fontSize, textHeightPercent
-  );
+  // --- STEP 2: Stamp Text for Detection ---
+  // We don't need the return value here, just the pixel data
+  stampText(auxCtx, text, fontSize, fontFamily, textHeightPercent);
   
-  auxCtx.font = `${fontSize}px ${fontFamily}`;
-  auxCtx.fillStyle = '#FFFFFF';
-  auxCtx.textBaseline = 'alphabetic';
-  
-  lines.forEach((line, i) => {
-    const lineWidth = auxCtx.measureText(line).width;
-    const lineX = (canvasWidth - lineWidth) / 2;
-    const lineY = position.startY + i * position.lineHeight;
-    auxCtx.fillText(line, lineX, lineY);
-  });
-  
+  // --- STEP 3: Analyze Pixels ---
   const imageData = auxCtx.getImageData(0, 0, canvasWidth, canvasHeight);
   const data = imageData.data;
   const visited = new Set();
