@@ -304,14 +304,17 @@ router.get('/captions/transcript/', async (req, res) => {
   }
 
   try {
-    const query = `SELECT srt FROM transcripts WHERE account_id=$1 AND video_id=$2`
+    const query = `SELECT srt, words FROM transcripts WHERE account_id=$1 AND video_id=$2`
     let captions = await pool.query(query, [accountId, videoId])
 
     if (!captions.rows.length) {
       return res.status(404).json({ error: 'Transcript not found' })
     }
 
-    res.json(captions.rows[0].srt)
+    res.json({
+      srt: captions.rows[0].srt,
+      words: captions.rows[0].words ? JSON.parse(captions.rows[0].words) : null
+    })
   } catch (error) {
     console.error('Error getting transcript:', error)
     res.status(500).json({ error: 'Failed to get transcript' })

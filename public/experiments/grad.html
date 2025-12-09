@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradient Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #222;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            width: 500px;
+        }
+
+        canvas {
+            border: 1px solid #555;
+            background-color: white;
+            border-radius: 4px;
+            max-width: 100%; 
+            height: auto;
+        }
+
+        .controls {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 80px 1fr 50px;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .checkbox-row {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        label {
+            font-size: 14px;
+            color: #ccc;
+            text-align: right;
+        }
+
+        .checkbox-row label {
+            text-align: left; 
+            cursor: pointer;
+            color: #fff;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        
+        input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #007bff;
+            transform: scale(1.2);
+        }
+
+        span.value {
+            font-family: monospace;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .note {
+            font-size: 12px;
+            color: #888;
+            margin-top: -5px;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <canvas id="gradCanvas" width="500" height="300"></canvas>
+
+    <div class="controls">
+        <label for="angle">Angle</label>
+        <input type="range" id="angle" min="0" max="360" value="195">
+        <span id="angleVal" class="value">195°</span>
+
+        <label for="attack">Attack</label>
+        <input type="range" id="attack" min="0" max="95" value="17">
+        <span id="attackVal" class="value">17%</span>
+
+        <label for="curve">Curve</label>
+        <input type="range" id="curve" min="0.1" max="5.0" step="0.1" value="1.2">
+        <span id="curveVal" class="value">1.2</span>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="reverse" checked>
+            <label for="reverse">Reverse Gradient (Black &rarr; White)</label>
+        </div>
+    </div>
+
+    <p class="note">
+        <strong>Attack:</strong> Delays the start of the fade.<br>
+        <strong>Curve:</strong> Controls the softness of the transition.
+    </p>
+</div>
+
+<script>
+    const canvas = document.getElementById('gradCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Inputs
+    const angleInput = document.getElementById('angle');
+    const attackInput = document.getElementById('attack');
+    const curveInput = document.getElementById('curve');
+    const reverseInput = document.getElementById('reverse');
+    
+    // Value Displays
+    const angleVal = document.getElementById('angleVal');
+    const attackVal = document.getElementById('attackVal');
+    const curveVal = document.getElementById('curveVal');
+
+    function draw() {
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // 1. Get values
+        const angleDeg = parseFloat(angleInput.value);
+        const attackPct = parseFloat(attackInput.value) / 100; 
+        const exponent = parseFloat(curveInput.value); 
+        const isReversed = reverseInput.checked;
+
+        // Update UI text
+        angleVal.textContent = angleDeg + "°";
+        attackVal.textContent = attackInput.value + "%";
+        curveVal.textContent = exponent.toFixed(1);
+
+        // 2. Clear Canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // 3. Geometry
+        const angleRad = (angleDeg - 90) * (Math.PI / 180); 
+        const cx = width / 2;
+        const cy = height / 2;
+        const dist = Math.sqrt(width * width + height * height);
+
+        const x0 = cx + Math.cos(angleRad) * (dist / 2);
+        const y0 = cy + Math.sin(angleRad) * (dist / 2);
+        const x1 = cx - Math.cos(angleRad) * (dist / 2);
+        const y1 = cy - Math.sin(angleRad) * (dist / 2);
+
+        const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+
+        const startColorStr = isReversed ? 'black' : 'white';
+
+        // 4. Generate Stops
+        // Step A: The "Attack" zone 
+        gradient.addColorStop(0, startColorStr);
+        if (attackPct > 0) {
+            gradient.addColorStop(attackPct, startColorStr);
+        }
+
+        // Step B: The "Curve" zone
+        const steps = 20; 
+        
+        for (let i = 0; i <= steps; i++) {
+            const localT = i / steps; 
+            
+            // Curve Math
+            const easedT = Math.pow(localT, exponent);
+
+            let intensity;
+            if (isReversed) {
+                intensity = easedT; // 0 -> 1 (Black to White)
+            } else {
+                intensity = 1 - easedT; // 1 -> 0 (White to Black)
+            }
+
+            const colorVal = Math.floor(255 * intensity); 
+            const colorStr = `rgb(${colorVal}, ${colorVal}, ${colorVal})`;
+
+            const availableSpace = 1.0 - attackPct;
+            const globalPos = attackPct + (localT * availableSpace);
+
+            gradient.addColorStop(globalPos, colorStr);
+        }
+
+        // 5. Fill
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    // Event Listeners
+    angleInput.addEventListener('input', draw);
+    attackInput.addEventListener('input', draw);
+    curveInput.addEventListener('input', draw);
+    reverseInput.addEventListener('change', draw);
+
+    // Initial draw
+    draw();
+</script>
+
+</body>
+</html>

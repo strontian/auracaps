@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js - Advanced Gold Effects</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { margin: 0; font-family: Monospace; background-color: #000; color: #fff; overflow: hidden; }
+        #controls { 
+            position: absolute; top: 20px; left: 20px; 
+            background: rgba(0, 0, 0, 0.85); padding: 15px; 
+            border-radius: 8px; z-index: 100; 
+            max-height: 90vh; overflow-y: auto;
+            width: 260px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        .control-group { margin-bottom: 8px; display: flex; align-items: center; }
+        .section-title { 
+            font-weight: bold; color: #ffd700; 
+            border-bottom: 1px solid #444; 
+            margin: 15px 0 10px 0; 
+            padding-bottom: 5px; 
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+        label { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #ddd; width: 100%; cursor: pointer; transition: color 0.2s;}
+        label:hover { color: #fff; }
+        input[type="range"] { width: 100%; cursor: pointer; margin: 5px 0; accent-color: #ffd700; }
+        input[type="checkbox"] { margin-right: 10px; cursor: pointer; accent-color: #ffd700; width: 16px; height: 16px; }
+        .value-display { color: #ffd700; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="section-title" style="margin-top:0;">Text Settings</div>
+        <div class="control-group">
+            <div style="width:100%">
+                <label>Size <span class="value-display" id="sizeValue">12</span></label>
+                <input type="range" id="sizeSlider" min="0.5" max="25" value="12" step="0.5">
+            </div>
+        </div>
+
+        <div class="section-title">Lighting Setup</div>
+        
+        <div class="control-group">
+            <label>
+                <span>Ambient Base</span>
+                <input type="checkbox" id="chkAmbient" checked>
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Studio Light (White)</span>
+                <input type="checkbox" id="chkDirectional" checked>
+            </label>
+        </div>
+
+        <div class="section-title">Dynamic Effects</div>
+
+        <div class="control-group">
+            <label>
+                <span>Cyber Points (Close)</span>
+                <input type="checkbox" id="chkCyber">
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Golden Orbiter</span>
+                <input type="checkbox" id="chkOrbit">
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Satellites (Distant)</span>
+                <input type="checkbox" id="chkSatellites">
+            </label>
+        </div>
+
+        <div class="section-title">Atmosphere</div>
+
+        <div class="control-group">
+            <label>
+                <span>Stardust Particles</span>
+                <input type="checkbox" id="chkParticles">
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Neon Pulse Mode</span>
+                <input type="checkbox" id="chkPulse">
+            </label>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+
+        let renderer, scene, camera, controls;
+        let textMesh, font, texture;
+        let particles;
+        
+        // Light containers
+        const lights = {
+            ambient: null,
+            directional: null,
+            cyber1: null,
+            cyber2: null,
+            orbiter: null,
+            sat1: null,
+            sat2: null
+        };
+
+        // State for animation
+        const state = {
+            orbiting: false,
+            satellites: false,
+            pulsing: false,
+            particles: false
+        };
+
+        init();
+
+        function init() {
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 80;
+            camera.position.y = 10;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.002); // Add fog for depth
+
+            // Environment Map
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1024; canvas.height = 512;
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#2b0a3d');
+            gradient.addColorStop(1, '#0a1520');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(0, 250, 1024, 50); // Horizon line
+            
+            texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.environment = texture;
+
+            setupLights();
+            createParticles();
+
+            const loader = new FontLoader();
+            loader.load('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/fonts/helvetiker_bold.typeface.json', function(loadedFont) {
+                font = loadedFont;
+                createText(12);
+            });
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.setAnimationLoop(animate);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            window.addEventListener('resize', onWindowResize);
+            setupUIControls();
+        }
+
+        function createParticles() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            
+            // Create 1000 particles
+            for ( let i = 0; i < 1000; i ++ ) {
+                const x = 200 * Math.random() - 100;
+                const y = 200 * Math.random() - 100;
+                const z = 200 * Math.random() - 100;
+                vertices.push( x, y, z );
+            }
+
+            geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+
+            const material = new THREE.PointsMaterial({ 
+                color: 0xffd700, 
+                size: 0.5,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+
+            particles = new THREE.Points( geometry, material );
+            particles.visible = false;
+            scene.add( particles );
+        }
+
+        function setupLights() {
+            // 1. Ambient
+            lights.ambient = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(lights.ambient);
+
+            // 2. Directional (Studio)
+            lights.directional = new THREE.DirectionalLight(0xffffff, 1.0);
+            lights.directional.position.set(10, 10, 50);
+            scene.add(lights.directional);
+
+            // 3. Cyber Points (Close range)
+            lights.cyber1 = new THREE.PointLight(0x00ffff, 200, 100); 
+            lights.cyber1.position.set(-30, 10, 20);
+            lights.cyber1.visible = false;
+            scene.add(lights.cyber1);
+
+            lights.cyber2 = new THREE.PointLight(0xff00ff, 200, 100);
+            lights.cyber2.position.set(30, -10, 20);
+            lights.cyber2.visible = false;
+            scene.add(lights.cyber2);
+
+            // 4. Orbiter (Close Gold)
+            lights.orbiter = new THREE.PointLight(0xffaa00, 300, 100);
+            lights.orbiter.position.set(0, 0, 40);
+            lights.orbiter.visible = false;
+            scene.add(lights.orbiter);
+            
+            const pointLightHelper = new THREE.Mesh(
+                new THREE.SphereGeometry(1, 8, 8), 
+                new THREE.MeshBasicMaterial({color: 0xffaa00})
+            );
+            lights.orbiter.add(pointLightHelper);
+
+            // 5. Satellites (Distant Orbiters)
+            // Teal Satellite
+            lights.sat1 = new THREE.PointLight(0x00ffaa, 1000, 200);
+            lights.sat1.visible = false;
+            scene.add(lights.sat1);
+            const sat1Helper = new THREE.Mesh(new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color: 0x00ffaa}));
+            lights.sat1.add(sat1Helper);
+
+            // Orange Satellite
+            lights.sat2 = new THREE.PointLight(0xff4400, 1000, 200);
+            lights.sat2.visible = false;
+            scene.add(lights.sat2);
+            const sat2Helper = new THREE.Mesh(new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color: 0xff4400}));
+            lights.sat2.add(sat2Helper);
+        }
+
+        function createText(size) {
+            if (textMesh) {
+                scene.remove(textMesh);
+                textMesh.geometry.dispose();
+            }
+
+            const textGeometry = new TextGeometry('Hello World!', {
+                font: font,
+                size: size,
+                depth: size * 0.2,
+                curveSegments: 12,
+                bevelEnabled: true,
+                bevelThickness: size * 0.15, 
+                bevelSize: size * 0.08,      
+                bevelOffset: 0,
+                bevelSegments: 20            
+            });
+
+            textGeometry.center();
+
+            const faceMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                metalness: 1.0,
+                roughness: 0,
+                envMapIntensity: 1.0
+            });
+
+            const sideMaterial = new THREE.MeshStandardMaterial({
+                color: 0xcfb53b,
+                metalness: 1,
+                roughness: 0.1
+            });
+
+            textMesh = new THREE.Mesh(textGeometry, [faceMaterial, sideMaterial]);
+            scene.add(textMesh);
+        }
+
+        function setupUIControls() {
+            document.getElementById('sizeSlider').addEventListener('input', (e) => {
+                document.getElementById('sizeValue').textContent = e.target.value;
+                if(font) createText(parseFloat(e.target.value));
+            });
+
+            // Toggle mapping
+            const toggles = [
+                { id: 'chkAmbient', obj: lights.ambient },
+                { id: 'chkDirectional', obj: lights.directional },
+                { id: 'chkCyber', group: [lights.cyber1, lights.cyber2] },
+                { id: 'chkOrbit', obj: lights.orbiter, state: 'orbiting' },
+                { id: 'chkSatellites', group: [lights.sat1, lights.sat2], state: 'satellites' },
+                { id: 'chkParticles', obj: particles, state: 'particles' },
+                { id: 'chkPulse', state: 'pulsing' }
+            ];
+
+            toggles.forEach(t => {
+                document.getElementById(t.id).addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    
+                    if (t.obj) t.obj.visible = isChecked;
+                    if (t.group) t.group.forEach(l => l.visible = isChecked);
+                    if (t.state) state[t.state] = isChecked;
+                });
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            const time = Date.now() * 0.001; // Seconds
+
+            // 1. Close Orbiter Animation
+            if (state.orbiting && lights.orbiter.visible) {
+                lights.orbiter.position.x = Math.sin(time * 1.5) * 40;
+                lights.orbiter.position.z = Math.cos(time * 1.5) * 30 + 20;
+                lights.orbiter.position.y = Math.sin(time * 3) * 10;
+            }
+
+            // 2. Distant Satellites Animation
+            if (state.satellites) {
+                // Sat 1 (Teal) - Horizontal orbit
+                lights.sat1.position.x = Math.cos(time * 0.5) * 70;
+                lights.sat1.position.z = Math.sin(time * 0.5) * 70;
+                
+                // Sat 2 (Orange) - Vertical/Tilted orbit
+                lights.sat2.position.x = Math.cos(time * 0.7 + 2) * 60;
+                lights.sat2.position.y = Math.sin(time * 0.7 + 2) * 60;
+                lights.sat2.position.z = Math.sin(time * 0.3) * 20;
+            }
+
+            // 3. Cyber Lights idle animation
+            if (lights.cyber1.visible) {
+                lights.cyber1.position.y = Math.sin(time) * 15;
+                lights.cyber2.position.y = Math.cos(time) * 15;
+            }
+
+            // 4. Particles Rotation
+            if (state.particles && particles) {
+                particles.rotation.y = time * 0.05;
+                particles.rotation.z = Math.sin(time * 0.1) * 0.1;
+            }
+
+            // 5. Pulse Mode
+            if (state.pulsing) {
+                const pulse = (Math.sin(time * 5) + 1.5) * 0.5; // Oscillates between 0.25 and 1.25 roughly
+                
+                if (lights.cyber1.visible) {
+                    lights.cyber1.intensity = 200 * pulse;
+                    lights.cyber2.intensity = 200 * pulse;
+                }
+                if (lights.orbiter.visible) lights.orbiter.intensity = 300 * pulse;
+                if (lights.sat1.visible) {
+                    lights.sat1.intensity = 1000 * pulse;
+                    lights.sat2.intensity = 1000 * pulse;
+                }
+            } else {
+                // Reset intensities if pulse is off
+                lights.cyber1.intensity = 200;
+                lights.cyber2.intensity = 200;
+                lights.orbiter.intensity = 300;
+                lights.sat1.intensity = 1000;
+                lights.sat2.intensity = 1000;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

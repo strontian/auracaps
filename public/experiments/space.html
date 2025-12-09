@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>three.js - 3D Text with Galaxy Texture</title>
+    <title>three.js - Arctic Text with Light Controls</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
@@ -22,7 +22,7 @@
             z-index: 100;
         }
         .control-group {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         label {
             display: block;
@@ -31,19 +31,13 @@
         }
         input[type="range"] {
             width: 200px;
+            cursor: pointer;
         }
         .value-display {
             display: inline-block;
             margin-left: 10px;
             color: #00ffff;
-        }
-        select {
-            width: 200px;
-            padding: 5px;
-            background: #222;
-            color: #fff;
-            border: 1px solid #444;
-            border-radius: 4px;
+            min-width: 30px;
         }
     </style>
 </head>
@@ -53,15 +47,14 @@
             <label>Text Size: <span class="value-display" id="sizeValue">12</span></label>
             <input type="range" id="sizeSlider" min="0.5" max="25" value="12" step="0.5">
         </div>
+        <hr style="border: 0; border-top: 1px solid #444; margin: 15px 0;">
         <div class="control-group">
-            <label>Lighting Mode:</label>
-            <select id="lightingMode">
-                <option value="galaxy">Galaxy</option>
-                <option value="neon">Neon Club</option>
-                <option value="sunset">Sunset</option>
-                <option value="arctic">Arctic</option>
-                <option value="fire">Fire</option>
-            </select>
+            <label>Light Position X: <span class="value-display" id="lightXValue">0</span></label>
+            <input type="range" id="lightXSlider" min="-150" max="150" value="0" step="1">
+        </div>
+        <div class="control-group">
+            <label>Light Position Y: <span class="value-display" id="lightYValue">10</span></label>
+            <input type="range" id="lightYSlider" min="-150" max="150" value="10" step="1">
         </div>
     </div>
 
@@ -94,15 +87,15 @@
 
             // Scene setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111111);
+            scene.background = new THREE.Color(0x0a1520);
 
-            // Create canvas for galaxy texture
+            // Create canvas for galaxy/ice texture
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = 512;
             canvas.height = 512;
 
-            // Create galaxy texture
+            // Create base gradient
             const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 400);
             gradient.addColorStop(0, '#4a148c');
             gradient.addColorStop(0.5, '#1a237e');
@@ -171,112 +164,26 @@
 
         function setupLights() {
             // Ambient light
-            lights.ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            lights.ambient = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(lights.ambient);
 
-            // Directional light
-            lights.directional = new THREE.DirectionalLight(0xffffff, 1);
-            lights.directional.position.set(10, 10, 10);
+            // Main Directional Light (Controlled by sliders)
+            lights.directional = new THREE.DirectionalLight(0xccffff, 1.5);
+            // Default position (0, 10, 100)
+            lights.directional.position.set(0, -20, 100); 
             scene.add(lights.directional);
 
-            // Point light 1
-            lights.point1 = new THREE.PointLight(0xff00ff, 1, 100);
-            lights.point1.position.set(-10, 10, 10);
+            // Side highlights
+            lights.point1 = new THREE.PointLight(0x00ffff, 2, 200);
+            lights.point1.position.set(-30, 10, 50);
             scene.add(lights.point1);
 
-            // Point light 2
-            lights.point2 = new THREE.PointLight(0x00ffff, 1, 100);
-            lights.point2.position.set(10, -10, 10);
+            lights.point2 = new THREE.PointLight(0x88ccff, 2, 200);
+            lights.point2.position.set(30, -10, 50);
             scene.add(lights.point2);
-
-            // Additional point lights for different modes
-            lights.point3 = new THREE.PointLight(0xff0000, 0, 100);
-            lights.point3.position.set(0, 0, 20);
-            scene.add(lights.point3);
-
-            lights.point4 = new THREE.PointLight(0x00ff00, 0, 100);
-            lights.point4.position.set(-20, 0, 0);
-            scene.add(lights.point4);
-        }
-
-        function setLightingMode(mode) {
-            switch(mode) {
-                case 'galaxy':
-                    lights.ambient.intensity = 0.5;
-                    lights.directional.intensity = 1;
-                    lights.directional.color.setHex(0xffffff);
-                    lights.point1.intensity = 1;
-                    lights.point1.color.setHex(0xff00ff);
-                    lights.point2.intensity = 1;
-                    lights.point2.color.setHex(0x00ffff);
-                    lights.point3.intensity = 0;
-                    lights.point4.intensity = 0;
-                    scene.background.setHex(0x111111);
-                    break;
-
-                case 'neon':
-                    lights.ambient.intensity = 0.2;
-                    lights.directional.intensity = 0.3;
-                    lights.directional.color.setHex(0x8800ff);
-                    lights.point1.intensity = 2;
-                    lights.point1.color.setHex(0xff0088);
-                    lights.point2.intensity = 2;
-                    lights.point2.color.setHex(0x00ffff);
-                    lights.point3.intensity = 1.5;
-                    lights.point3.color.setHex(0xff00ff);
-                    lights.point4.intensity = 1.5;
-                    lights.point4.color.setHex(0x00ff88);
-                    scene.background.setHex(0x050510);
-                    break;
-
-                case 'sunset':
-                    lights.ambient.intensity = 0.6;
-                    lights.directional.intensity = 1.5;
-                    lights.directional.color.setHex(0xff6600);
-                    lights.point1.intensity = 1.2;
-                    lights.point1.color.setHex(0xff3300);
-                    lights.point2.intensity = 1;
-                    lights.point2.color.setHex(0xff9900);
-                    lights.point3.intensity = 0.8;
-                    lights.point3.color.setHex(0xff6600);
-                    lights.point4.intensity = 0;
-                    scene.background.setHex(0x1a0a05);
-                    break;
-
-                case 'arctic':
-                    lights.ambient.intensity = 0.7;
-                    lights.directional.intensity = 1.2;
-                    lights.directional.color.setHex(0xccffff);
-                    lights.point1.intensity = 1.5;
-                    lights.point1.color.setHex(0x00ffff);
-                    lights.point2.intensity = 1.5;
-                    lights.point2.color.setHex(0x88ccff);
-                    lights.point3.intensity = 1;
-                    lights.point3.color.setHex(0xaaffff);
-                    lights.point4.intensity = 0.5;
-                    lights.point4.color.setHex(0xffffff);
-                    scene.background.setHex(0x0a1520);
-                    break;
-
-                case 'fire':
-                    lights.ambient.intensity = 0.3;
-                    lights.directional.intensity = 0.5;
-                    lights.directional.color.setHex(0xff3300);
-                    lights.point1.intensity = 2;
-                    lights.point1.color.setHex(0xff0000);
-                    lights.point2.intensity = 1.5;
-                    lights.point2.color.setHex(0xff6600);
-                    lights.point3.intensity = 2;
-                    lights.point3.color.setHex(0xff9900);
-                    lights.point4.intensity = 1;
-                    lights.point4.color.setHex(0xffcc00);
-                    scene.background.setHex(0x100505);
-                    break;
-            }
         }
 
         function createText(size) {
-            // Remove old text mesh if it exists
             if (textMesh) {
                 scene.remove(textMesh);
                 textMesh.geometry.dispose();
@@ -299,7 +206,9 @@
             const textMaterial = new THREE.MeshStandardMaterial({
                 map: texture,
                 roughness: 0.3,
-                metalness: 0.2
+                metalness: 1,
+                //emissive: 0x00ffff,   // The color of the light
+                //emissiveIntensity: .02  // How b      
             });
 
             textMesh = new THREE.Mesh(textGeometry, textMaterial);
@@ -309,22 +218,30 @@
         function setupUIControls() {
             const sizeSlider = document.getElementById('sizeSlider');
             const sizeValue = document.getElementById('sizeValue');
-            const lightingMode = document.getElementById('lightingMode');
+            
+            // Light control elements
+            const lightXSlider = document.getElementById('lightXSlider');
+            const lightXValue = document.getElementById('lightXValue');
+            const lightYSlider = document.getElementById('lightYSlider');
+            const lightYValue = document.getElementById('lightYValue');
 
             sizeSlider.addEventListener('input', (e) => {
                 const size = parseFloat(e.target.value);
                 sizeValue.textContent = size;
-                if (font) {
-                    createText(size);
-                }
+                if (font) createText(size);
             });
 
-            lightingMode.addEventListener('change', (e) => {
-                setLightingMode(e.target.value);
+            lightXSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                lightXValue.textContent = val;
+                lights.directional.position.x = val;
             });
 
-            // Set initial lighting
-            setLightingMode('galaxy');
+            lightYSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                lightYValue.textContent = val;
+                lights.directional.position.y = val;
+            });
         }
 
         function onWindowResize() {

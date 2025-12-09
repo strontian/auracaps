@@ -443,6 +443,7 @@
     let rainbowState = {}; 
 
     let subtitles = [];
+    let words = null;
     let fontSize = 48;
     let textHeightPercent = 7;
     let animationFrameId = null;
@@ -705,10 +706,11 @@
         const videoName = urlParams.get('id')
         const srtResponse = await fetch(`/api/captions/transcript/?id=${videoName}`);
 
-        // Load SRT file
-        const srtContent = await srtResponse.json();
-        console.log(srtContent)
-        subtitles = parseSRT(srtContent);
+        // Load SRT file and word data
+        const transcriptData = await srtResponse.json();
+        console.log(transcriptData)
+        subtitles = parseSRT(transcriptData.srt);
+        words = transcriptData.words; // Store word-level data for potential use
 
         const tokenResponse = await fetch(`/api/captions/video_token?id=${videoName}`)
         const tokenData = await tokenResponse.json();
