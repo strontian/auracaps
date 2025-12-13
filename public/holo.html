@@ -21,6 +21,11 @@
       src: url('/fonts/Tinos-Regular.ttf') format('truetype');
     }
 
+    @font-face {
+      font-family: 'Beon';
+      src: url('/fonts/Beon-Regular.ttf') format('truetype');
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -384,9 +389,10 @@
         <div class="control-group">
           <label for="styleSelect">Caption Style:</label>
           <select id="styleSelect">
-            <option value="holographic">Holographic</option>
+            <option value="holographic">Cotton Candy</option>
             <option value="rainbow">Rainbow</option>
             <option value="led">LED</option>
+            <option value="neon">Neon</option>
           </select>
         </div>
         
@@ -415,8 +421,7 @@
     </footer>
   </div>
 <script type="module">
-    // UPDATED IMPORT: Added renderRainbowEffect
-    import { renderHolographicEffect, detectLEDDots, renderLEDEffect, renderRainbowEffect } from './effects.mjs';
+    import { renderHolographicEffect, detectLEDDots, renderLEDEffect, renderRainbowEffect, renderNeonEffect } from './effects.mjs';
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -435,15 +440,13 @@
     let auxCtx = null;
 
     let holoImage = null;
-    // rainbowImage removed as it's no longer used
     let currentStyleImage = null;
     let currentStyle = 'holographic';
     
-    // NEW: Persistent state for rainbow particles
     let rainbowState = {}; 
 
     let subtitles = [];
-    let words = null;
+    let allWords = []; // Renamed from 'words' to be clear it's the master list
     let fontSize = 48;
     let textHeightPercent = 7;
     let animationFrameId = null;
@@ -452,63 +455,29 @@
     const urlParams = new URLSearchParams(window.location.search)
     let videoId = urlParams.get('id')
 
-    // Update style selection
+    // --- Event Listeners ---
     styleSelect.addEventListener('change', (e) => {
       currentStyle = e.target.value;
-      
-      // Update current style image for holographic only
-      if (currentStyle === 'holographic') {
-        currentStyleImage = holoImage;
-      } 
-      // Rainbow no longer uses an image, so we don't need to set currentStyleImage
-      
-      // Reset LED dots when switching to/from LED style
-      if (currentStyle === 'led') {
-        lastLEDText = null;
-        ledDots = null;
-      }
-      
-      // Render immediately if video is paused
-      if (video.paused && !animationFrameId) {
-        renderSingleFrame();
-      }
+      if (currentStyle === 'holographic') currentStyleImage = holoImage;
+      if (currentStyle === 'led') { lastLEDText = null; ledDots = null; }
+      if (video.paused && !animationFrameId) renderSingleFrame();
     });
 
-    // Update font size
     fontSizeInput.addEventListener('input', (e) => {
       fontSize = parseInt(e.target.value);
       fontSizeValue.textContent = fontSize + 'px';
-      
-      // Reset LED dots on font size change
-      if (currentStyle === 'led') {
-        lastLEDText = null;
-        ledDots = null;
-      }
-      
-      // Render immediately if video is paused
-      if (video.paused && !animationFrameId) {
-        renderSingleFrame();
-      }
+      if (currentStyle === 'led') { lastLEDText = null; ledDots = null; }
+      if (video.paused && !animationFrameId) renderSingleFrame();
     });
 
-    // Update text height (inverted: 100 = top, 0 = bottom)
     textHeightInput.addEventListener('input', (e) => {
       textHeightPercent = parseInt(e.target.value);
       textHeightValue.textContent = textHeightPercent + '%';
-      
-      // Reset LED dots on position change
-      if (currentStyle === 'led') {
-        lastLEDText = null;
-        ledDots = null;
-      }
-      
-      // Render immediately if video is paused
-      if (video.paused && !animationFrameId) {
-        renderSingleFrame();
-      }
+      if (currentStyle === 'led') { lastLEDText = null; ledDots = null; }
+      if (video.paused && !animationFrameId) renderSingleFrame();
     });
 
-    // Export video button handler
+    // --- Export Logic ---
     exportBtn.addEventListener('click', async () => {
       exportBtn.disabled = true;
       exportStatus.textContent = 'Exporting...';
@@ -517,233 +486,201 @@
       try {
         const response = await fetch('/api/captions/create', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            videoId: videoId,
-            fontSize: fontSize,
-            textPosition: textHeightPercent,
-            style: currentStyle
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, fontSize, textPosition: textHeightPercent, style: currentStyle })
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const result = await response.json();
         exportStatus.textContent = 'Processing video...';
-        exportStatus.style.color = '#fff';
-        console.log('Export started:', result);
-
-        // Poll for file completion
+        
         let fileFound = false;
         let pollAttempts = 0;
-        const maxAttempts = 120; // 2 minutes max (120 * 1 second)
+        const maxAttempts = 120; 
         
         while (!fileFound && pollAttempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          await new Promise(resolve => setTimeout(resolve, 1000)); 
           pollAttempts++;
           
           try {
-            const checkEndpoint = `/api/captions/check/${videoId}`;
-            const checkResponse = await fetch(checkEndpoint);
-            
+            const checkResponse = await fetch(`/api/captions/check/${videoId}`);
             if (checkResponse.ok) {
               const checkData = await checkResponse.json();
               if (checkData.fileFound) {
                 fileFound = true;
                 exportStatus.textContent = 'Export complete! Redirecting...';
                 exportStatus.style.color = '#86efac';
-
-                // Redirect after brief delay
-                setTimeout(() => {
-                  window.location.href = `/download.html?id=${checkData.captionedVideoId}`;
-                }, 1500);
+                setTimeout(() => { window.location.href = `/download.html?id=${checkData.captionedVideoId}`; }, 1500);
               } else {
-                // Update status with attempt count
                 exportStatus.textContent = `Processing video... (${pollAttempts}s)`;
               }
             }
-          } catch (checkError) {
-            console.error('Check error:', checkError);
-            // Continue polling even if check fails
-          }
+          } catch (e) { console.error(e); }
         }
-        
-        if (!fileFound) {
-          throw new Error('Export timeout - file not found after 2 minutes');
-        }
-        
+        if (!fileFound) throw new Error('Export timeout');
       } catch (error) {
-        console.error('Export error:', error);
         exportStatus.textContent = 'Export failed: ' + error.message;
         exportStatus.style.color = '#fca5a5';
         exportBtn.disabled = false;
       }
     });
 
-    // Parse SRT format
+    // --- Parsing Helpers ---
     function parseSRT(content) {
       const blocks = content.trim().split(/\n\s*\n/);
       const subs = [];
-      
       for (const block of blocks) {
         const lines = block.split('\n');
         if (lines.length < 3) continue;
-        
         const timeLine = lines[1];
         const timeMatch = timeLine.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
-        
         if (timeMatch) {
-          const startTime = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + 
-                           parseInt(timeMatch[3]) + parseInt(timeMatch[4]) / 1000;
-          const endTime = parseInt(timeMatch[5]) * 3600 + parseInt(timeMatch[6]) * 60 + 
-                         parseInt(timeMatch[7]) + parseInt(timeMatch[8]) / 1000;
-          
+          const startTime = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]) + parseInt(timeMatch[4]) / 1000;
+          const endTime = parseInt(timeMatch[5]) * 3600 + parseInt(timeMatch[6]) * 60 + parseInt(timeMatch[7]) + parseInt(timeMatch[8]) / 1000;
           const text = lines.slice(2).join('\n');
+          // Store start/end in the object so we can filter words later
           subs.push({ startTime, endTime, text });
         }
       }
-      
       return subs;
     }
 
-    // Get active subtitle
-    function getSubtitleAtTime(timestamp) {
+    function getSubtitleBlockAtTime(timestamp) {
       for (const sub of subtitles) {
         if (timestamp >= sub.startTime && timestamp < sub.endTime) {
-          return sub.text;
+          return sub; // Return the whole object, not just text
         }
       }
       return null;
     }
 
+    // --- Rendering Core ---
     // Render a single frame (for when video is paused)
     function renderSingleFrame() {
       const timestamp = video.currentTime;
-      const text = getSubtitleAtTime(timestamp);
+      const activeBlock = getSubtitleBlockAtTime(timestamp);
       
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      if (!text) {
-        return;
-      }
+      if (!activeBlock) return;
+
+      const text = activeBlock.text;
       
-      // LED style rendering
       if (currentStyle === 'led') {
         if (text !== lastLEDText || !ledDots) {
-          ledDots = detectLEDDots({
-            text: text,
-            fontSize: fontSize,
-            textHeightPercent: textHeightPercent,
-            squareSize: 8,
-            auxCtx: auxCtx
-          });
+          ledDots = detectLEDDots({ text, fontSize, textHeightPercent, squareSize: 8, auxCtx });
           lastLEDText = text;
         }
-        
         if (ledDots && ledDots.length > 0) {
-          renderLEDEffect(ctx, {
-            dots: ledDots,
-            fontSize: fontSize,
-            squareSize: 8
-          });
+          renderLEDEffect(ctx, { dots: ledDots, fontSize, squareSize: 8 });
         }
       } 
-      // NEW: Rainbow Style Rendering
       else if (currentStyle === 'rainbow') {
-        renderRainbowEffect(ctx, {
-          text: text,
-          fontSize: fontSize,
-          textHeightPercent: textHeightPercent,
-          state: rainbowState,
-          auxCanvas: auxCanvas
+        renderRainbowEffect(ctx, { text, fontSize, textHeightPercent, state: rainbowState, auxCanvas });
+      }
+      else if (currentStyle === 'neon') {
+        // 1. Get words for this block with a TIGHTER filter
+        // We reduced the buffer from 0.5 to 0.05 to prevent grabbing words from the previous sentence
+        const blockWords = allWords.filter(w => 
+            w.start >= activeBlock.startTime - 0.05 && 
+            w.start < activeBlock.endTime + 0.05
+        );
+
+        // 2. Map them to the format expected by renderNeonEffect
+        const activeWords = blockWords.map(w => {
+            const attackDuration = 0.15; 
+            const decayDuration = 0.3;   
+            let alpha = 0.05;            
+
+            if (timestamp >= w.start && timestamp <= w.end) {
+                const timeSinceStart = timestamp - w.start;
+                if (timeSinceStart < attackDuration) {
+                    const progress = timeSinceStart / attackDuration;
+                    alpha = 0.05 + ((1.0 - 0.05) * progress);
+                } else {
+                    alpha = 1.0;
+                }
+            } 
+            else if (timestamp > w.end && timestamp < (w.end + decayDuration)) {
+                const timeSinceEnd = timestamp - w.end;
+                const progress = timeSinceEnd / decayDuration;
+                alpha = 1.0 - ((1.0 - 0.05) * progress);
+            }
+
+            return {
+                text: w.punctuated_word || w.word,
+                alpha: Math.max(0.05, Math.min(1.0, alpha)) 
+            };
+        });
+
+        // 3. Sanitize Text to match arrays
+        // We replace multiple spaces with single spaces to ensure the renderer's split(' ') 
+        // matches our word list count exactly.
+        const cleanText = text.replace(/[ \t]+/g, ' ').trim();
+
+        renderNeonEffect(ctx, {
+            text: cleanText,
+            words: activeWords,
+            fontSize: fontSize,
+            textHeightPercent: textHeightPercent,
+            tubeColor: '#00f7ff',
+            haloColor: '#0051ff'
         });
       }
-      // Holographic style rendering
       else if (currentStyleImage) {
-        renderHolographicEffect(ctx, {
-          text: text,
-          styleImage: currentStyleImage,
-          timestamp: timestamp,
-          fontSize: fontSize,
-          textHeightPercent: textHeightPercent
-        });
+        renderHolographicEffect(ctx, { text, styleImage: currentStyleImage, timestamp, fontSize, textHeightPercent });
       }
     }
 
-    // Render frame (for animation loop)
     function renderFrame() {
       renderSingleFrame();
       animationFrameId = requestAnimationFrame(renderFrame);
     }
 
-    // Load resources
+    // --- Initialization ---
     async function init() {
       try {
-        // Load holographic image
         holoImage = new Image();
         holoImage.crossOrigin = 'anonymous';
         await new Promise((resolve, reject) => {
-          holoImage.onload = resolve;
-          holoImage.onerror = reject;
-          holoImage.src = '/images/holo.jpg';
+            holoImage.onload = resolve;
+            holoImage.onerror = reject;
+            holoImage.src = '/images/holo.jpg';
         });
-
-        // REMOVED: Rainbow image loading (no longer needed)
-
-        // Set initial style image
         currentStyleImage = holoImage;
 
-        console.log('=== Image Resolutions ===');
-        console.log('Holographic image:', holoImage.width, 'x', holoImage.height);
-
-        // Get video token and load video
         const urlParams = new URLSearchParams(window.location.search)
         const videoName = urlParams.get('id')
+        
+        // Load transcript and master word list
         const srtResponse = await fetch(`/api/captions/transcript/?id=${videoName}`);
-
-        // Load SRT file and word data
         const transcriptData = await srtResponse.json();
-        console.log(transcriptData)
+        
         subtitles = parseSRT(transcriptData.srt);
-        words = transcriptData.words; // Store word-level data for potential use
+        allWords = transcriptData.words; // Store the detailed word timing data
 
         const tokenResponse = await fetch(`/api/captions/video_token?id=${videoName}`)
         const tokenData = await tokenResponse.json();
         video.src = tokenData
 
-        // Inside init(), after video.onloadedmetadata
         await new Promise((resolve) => {
           video.onloadedmetadata = () => {
-            // Match canvas to video dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-            console.log('=== Canvas Resolution ===');
-            console.log('Canvas:', canvas.width, 'x', canvas.height);
-            // --- INITIALIZE SCRATCHPAD ONCE ---
             auxCanvas = document.createElement('canvas');
             auxCanvas.width = video.videoWidth;
             auxCanvas.height = video.videoHeight;
             auxCtx = auxCanvas.getContext('2d');
             
-            // Calculate dynamic font size range based on the SHORTER dimension
             const shorterDimension = Math.min(canvas.width, canvas.height);
             const minFontSize = Math.round(shorterDimension / 20);  
             const maxFontSize = Math.round(shorterDimension / 10);  
             
-            // Update slider attributes
             fontSizeInput.min = minFontSize;
             fontSizeInput.max = maxFontSize;
-            
-            // Set initial font size to middle of range
-            const defaultFontSize = Math.round((minFontSize + maxFontSize) / 2);
-            fontSizeInput.value = defaultFontSize;
-            fontSize = defaultFontSize;
+            fontSizeInput.value = Math.round((minFontSize + maxFontSize) / 2);
+            fontSize = parseInt(fontSizeInput.value);
             fontSizeValue.textContent = fontSize + 'px';
             
             resolve();
@@ -751,24 +688,10 @@
         });
         loading.style.display = 'none';
         
-        // Start rendering when video plays
-        video.addEventListener('play', () => {
-          if (!animationFrameId) {
-            renderFrame();
-          }
-        });
-        
-        video.addEventListener('pause', () => {
-          if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-          }
-        });
+        video.addEventListener('play', () => { if (!animationFrameId) renderFrame(); });
+        video.addEventListener('pause', () => { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } });
 
-        // Render initial frame
         renderSingleFrame();
-
-        console.log('Ready! Use video controls to play.');
       } catch (error) {
         console.error('Error loading resources:', error);
         loading.textContent = 'Error loading resources. Check console.';
@@ -776,6 +699,6 @@
     }
 
     init();
-  </script>
+</script>
 </body>
 </html>

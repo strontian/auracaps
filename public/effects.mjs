@@ -402,3 +402,114 @@ export function renderLEDEffect(ctx, opts) {
   
   ctx.globalAlpha = 1.0;
 }
+
+export function renderNeonEffect(ctx, opts) {
+  const {
+    text,
+    words, // Array of word objects { text, alpha } corresponding to the block
+    fontSize,
+    textHeightPercent,
+    tubeColor = '#00f7ff',
+    haloColor = '#0051ff'
+  } = opts;
+
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const fontFamily = 'Beon'; 
+  const spacing = 10; // Space between words
+
+  // 1. Use helper to calculate line breaks based on canvas width
+  const padding = 50;
+  const maxWidth = canvasWidth - (padding * 2);
+  
+  // Note: We use the existing wrapText helper to get the visual lines
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  const lines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
+
+  // 2. Calculate vertical starting position
+  const position = calculateTextPosition(
+    canvasHeight, lines.length, fontSize, textHeightPercent
+  );
+
+  // 3. Render Loop
+  ctx.save();
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textBaseline = 'alphabetic'; // wrapText helper assumes this for line calculation usually, but we adjust Y below
+  
+  // We need to track which word object we are drawing from the passed 'words' array
+  let wordIndex = 0;
+
+  lines.forEach((line, lineIdx) => {
+    // Re-calculate X centering for this specific line
+    const lineWidth = ctx.measureText(line).width; 
+    let currentX = (canvasWidth - lineWidth) / 2;
+    
+    // We align based on the helper's calculated Y, adding font size to push it down from baseline if needed
+    // calculateTextPosition returns the top-left Y of the first line usually, depending on implementation.
+    // Standardizing to the helper provided:
+    const currentY = position.startY + (lineIdx * position.lineHeight);
+
+    // Split line back into words to draw them individually with unique alphas
+    const lineWords = line.split(' ');
+
+    lineWords.forEach((wText) => {
+      // Find the specific word data. 
+      // Safety check: ensure we don't go out of bounds if text doesn't match words array perfectly
+      const wordData = words[wordIndex] || { text: wText, alpha: 0 };
+      const alpha = wordData.alpha;
+
+      // --- DRAWING LOGIC EXTRACTED FROM WEBPAGE ---
+      
+      // 1. Draw "Off" state (Dim Wire)
+      ctx.fillStyle = 'rgba(0,0,0,0)'; // No fill for the wire
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(wText, currentX, currentY);
+
+      // 2. Draw "On" state
+      if (alpha > 0.01) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Outer Halo
+        ctx.shadowColor = haloColor;
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = haloColor;
+        ctx.fillText(wText, currentX, currentY);
+
+        // Core Glow
+        ctx.shadowColor = tubeColor;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = tubeColor;
+        ctx.lineWidth = 4;
+        ctx.strokeText(wText, currentX, currentY);
+
+        // Center White Hot filament
+        if (alpha > 0.5) {
+          ctx.shadowBlur = 5;
+          // Simple RGB conversion for the glow transparency
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
+          ctx.lineWidth = 2;
+          ctx.strokeText(wText, currentX, currentY);
+
+          if (alpha > 0.8) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.strokeText(wText, currentX, currentY);
+          }
+        }
+        ctx.restore();
+      }
+
+      // Move X cursor
+      currentX += ctx.measureText(wText).width + ctx.measureText(' ').width;
+      
+      // Increment global word index
+      wordIndex++;
+    });
+  });
+
+  ctx.restore();
+}

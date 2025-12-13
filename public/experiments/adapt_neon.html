@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepgram Neon Sync + SRT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Beon&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a0a url('https://www.transparenttextures.com/patterns/black-brick-wall.png');
+            font-family: 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        canvas {
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+            background-color: rgba(0,0,0,0.6);
+            border: 4px solid #222;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+        button#playBtn {
+            background: #00f7ff;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Beon', sans-serif;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px #00f7ff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    
+    <div class="controls">
+        <button id="playBtn">PLAY</button>
+        <div id="timer" style="font-family:monospace; color:#00f7ff; font-size: 1.2rem;">0.00s</div>
+    </div>
+    
+    <script type="module">
+        // Import your local module (adjust path as needed)
+        import { renderNeonEffect } from './effects.mjs';
+
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        const timerDisplay = document.getElementById('timer');
+        const playBtn = document.getElementById('playBtn');
+
+        const WIDTH = 1200; 
+        const HEIGHT = 400; // Increased height to allow for wrapping
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+
+        // --- DATA ---
+        const srtRaw = `
+1
+00:00:00,200 --> 00:00:02,000
+Hi. So
+
+2
+00:00:02,100 --> 00:00:04,900
+I recently got back into playing Magic.
+
+3
+00:00:05,100 --> 00:00:07,500
+It's surprisingly expensive!
+`;
+
+        const rawData = [
+            {word: 'hi', start: 0.24, end: 0.74, punctuated_word: 'Hi.'},
+            {word: 'so', start: 1.44, end: 1.94, punctuated_word: 'So'},
+            {word: 'i', start: 2.16, end: 2.56, punctuated_word: 'I'},
+            {word: 'recently', start: 2.56, end: 3.04, punctuated_word: 'recently'},
+            {word: 'got', start: 3.04, end: 3.28, punctuated_word: 'got'},
+            {word: 'back', start: 3.28, end: 3.44, punctuated_word: 'back'},
+            {word: 'into', start: 3.44, end: 3.92, punctuated_word: 'into'},
+            {word: 'playing', start: 3.92, end: 4.40, punctuated_word: 'playing'},
+            {word: 'magic', start: 4.40, end: 4.72, punctuated_word: 'Magic.'},
+            {word: 'its', start: 5.10, end: 5.40, punctuated_word: "It's"},
+            {word: 'surprisingly', start: 5.40, end: 6.20, punctuated_word: 'surprisingly'},
+            {word: 'expensive', start: 6.20, end: 6.90, punctuated_word: 'expensive!'}
+        ];
+
+        // --- PARSING ---
+        function parseSRTTime(timeString) {
+            const parts = timeString.split(':');
+            const secondsParts = parts[2].split(',');
+            return (parseInt(parts[0]) * 3600) + (parseInt(parts[1]) * 60) + parseInt(secondsParts[0]) + (parseInt(secondsParts[1]) / 1000);
+        }
+
+        function parseSRT(data) {
+            const blocks = [];
+            const parts = data.trim().split(/\n\s*\n/);
+            parts.forEach(part => {
+                const lines = part.split('\n');
+                if(lines.length >= 3) {
+                    const [startStr, endStr] = lines[1].split(' --> ');
+                    blocks.push({
+                        start: parseSRTTime(startStr),
+                        end: parseSRTTime(endStr),
+                        text: lines.slice(2).join(' ')
+                    });
+                }
+            });
+            return blocks;
+        }
+
+        const srtBlocks = parseSRT(srtRaw);
+        
+        // Prepare words with physics state
+        let allWords = rawData.map(item => ({
+            ...item,
+            text: item.punctuated_word, 
+            alpha: 0
+        }));
+
+        // --- STATE ---
+        let isPlaying = false;
+        let startTimestamp = 0;
+        let playbackTime = 0; 
+        const attackSpeed = 0.15;
+        const decaySpeed = 0.05;
+
+        playBtn.addEventListener('click', () => {
+            if(isPlaying) return;
+            allWords.forEach(w => w.alpha = 0);
+            isPlaying = true;
+            startTimestamp = performance.now();
+            playBtn.innerText = "PLAYING...";
+        });
+
+        function updatePhysics(timestamp) {
+            if (isPlaying) {
+                playbackTime = (timestamp - startTimestamp) / 1000;
+                timerDisplay.innerText = playbackTime.toFixed(2) + "s";
+                if (playbackTime > 7.5) { isPlaying = false; playBtn.innerText = "REPLAY"; playbackTime = 0; }
+            }
+
+            // Calculate Alpha (Physics)
+            allWords.forEach(word => {
+                const isActive = (playbackTime >= word.start && playbackTime <= word.end);
+                if (isActive) {
+                    if (word.alpha < 1.0) word.alpha += attackSpeed;
+                    if (word.alpha > 1.0) word.alpha = 1.0; 
+                } else {
+                    if (word.alpha > 0) word.alpha -= decaySpeed;
+                    if (word.alpha < 0) word.alpha = 0;
+                }
+            });
+        }
+
+        function render(timestamp) {
+            updatePhysics(timestamp);
+            
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+            // 1. Find Current SRT Block
+            const activeBlock = srtBlocks.find(b => playbackTime >= b.start && playbackTime <= b.end + 0.2);
+
+            if (activeBlock) {
+                // 2. Filter words that belong to this block
+                // (Matches timing of block to timing of specific words)
+                const visibleWords = allWords.filter(w => w.start >= activeBlock.start - 0.5 && w.start <= activeBlock.end + 0.5);
+
+                // 3. Call the imported Effect
+                // We pass the RAW block text (which gets wrapped inside the effect)
+                // and the ARRAY of word objects (which holds the alpha state)
+                renderNeonEffect(ctx, {
+                    text: activeBlock.text,
+                    words: visibleWords, 
+                    fontSize: 60,
+                    textHeightPercent: 80, // Lower third
+                    tubeColor: '#00f7ff',
+                    haloColor: '#0051ff'
+                });
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Init
+        document.fonts.load('60px Beon').then(() => requestAnimationFrame(render));
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decoupled Neon Animation</title>
+    <title>Deepgram Neon Sync + SRT</title>
     <link href="https://fonts.googleapis.com/css2?family=Beon&display=swap" rel="stylesheet">
     <style>
         body {
@@ -35,9 +35,9 @@
             display: flex;
             flex-wrap: wrap;
             gap: 30px;
-            align-items: start;
+            align-items: center;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            max-width: 800px;
+            max-width: 900px;
         }
 
         .control-section {
@@ -50,17 +50,61 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            width: 180px;
+            width: 160px;
         }
         
         .label {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 0.8rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
             color: #aaa;
+        }
+
+        .value-readout {
+            font-family: monospace;
+            color: #00f7ff;
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        button#playBtn {
+            background: #00f7ff;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Beon', sans-serif;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px #00f7ff;
+            transition: all 0.2s;
+        }
+        button#playBtn:hover {
+            background: #fff;
+            box-shadow: 0 0 25px #00f7ff;
+            transform: scale(1.05);
+        }
+        button#playBtn:disabled {
+            background: #333;
+            color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .timer-display {
+            font-family: monospace;
+            font-size: 1.2rem;
+            color: #00f7ff;
+            text-shadow: 0 0 5px #00f7ff;
+            min-width: 80px;
+            text-align: right;
         }
 
         input[type=range] {
@@ -105,26 +149,24 @@
     <canvas id="mainCanvas"></canvas>
     
     <div class="controls">
-        <div class="control-section">
+        <button id="playBtn">PLAY</button>
+        <div class="timer-display" id="timer">0.00s</div>
+
+        <div class="control-section" style="border-left: 1px solid #333; padding-left: 30px;">
             <div class="control-group">
                 <div class="label">
-                    <span>Sequence Tempo</span>
+                    <span>Power On</span>
+                    <span id="attackVal" class="value-readout">0.15</span>
                 </div>
-                <input type="range" id="tempoSlider" min="100" max="2000" step="50" value="600">
+                <input type="range" id="attackSlider" min="0.01" max="0.3" step="0.01" value="0.15">
             </div>
 
             <div class="control-group">
                 <div class="label">
-                    <span>Power On Rate</span>
+                    <span>Fade Out</span>
+                    <span id="decayVal" class="value-readout">0.05</span>
                 </div>
-                <input type="range" id="attackSlider" min="0.005" max="0.1" step="0.001" value="0.03">
-            </div>
-
-            <div class="control-group">
-                <div class="label">
-                    <span>Fade Out Rate</span>
-                </div>
-                <input type="range" id="decaySlider" min="0.005" max="0.1" step="0.001" value="0.02">
+                <input type="range" id="decaySlider" min="0.01" max="0.2" step="0.01" value="0.05">
             </div>
         </div>
 
@@ -143,84 +185,168 @@
     <script>
         const mainCanvas = document.getElementById('mainCanvas');
         const ctx = mainCanvas.getContext('2d');
+        const timerDisplay = document.getElementById('timer');
+        const playBtn = document.getElementById('playBtn');
 
         // --- CONFIGURATION ---
-        const WIDTH = 1000;
-        const HEIGHT = 300;
-        const FONT_SIZE = 90;
+        const WIDTH = 1200; 
+        const HEIGHT = 250;
+        const FONT_SIZE = 60; 
         const FONT_FAMILY = 'Beon, sans-serif';
-        const SPACING = 30;
-        
-        let words = [
-            { text: "CODE",    alpha: 0, width: 0 },
-            { text: "SLEEP",   alpha: 0, width: 0 },
-            { text: "REPEAT",  alpha: 0, width: 0 },
-            { text: "REFACTOR",alpha: 0, width: 0 }
+        const SPACING = 20;
+
+        // --- 1. HARDCODED SRT DATA ---
+        // This controls which BLOCK of text is shown
+        const srtRaw = `
+1
+00:00:00,200 --> 00:00:02,000
+Hi. So
+
+2
+00:00:02,100 --> 00:00:04,900
+I recently got back into playing Magic.
+
+3
+00:00:05,100 --> 00:00:07,500
+It's surprisingly expensive!
+`;
+
+        // --- 2. HARDCODED WORD DATA (DEEPGRAM FORMAT) ---
+        // This controls the specific neon highlight timing
+        const rawData = [
+            // Block 1
+            {word: 'hi', start: 0.24, end: 0.74, confidence: 0.99, punctuated_word: 'Hi.'},
+            {word: 'so', start: 1.44, end: 1.94, confidence: 0.98, punctuated_word: 'So'},
+            
+            // Block 2
+            {word: 'i', start: 2.16, end: 2.56, confidence: 0.99, punctuated_word: 'I'},
+            {word: 'recently', start: 2.56, end: 3.04, confidence: 0.99, punctuated_word: 'recently'},
+            {word: 'got', start: 3.04, end: 3.28, confidence: 0.99, punctuated_word: 'got'},
+            {word: 'back', start: 3.28, end: 3.44, confidence: 0.99, punctuated_word: 'back'},
+            {word: 'into', start: 3.44, end: 3.92, confidence: 0.99, punctuated_word: 'into'},
+            {word: 'playing', start: 3.92, end: 4.40, confidence: 0.99, punctuated_word: 'playing'},
+            {word: 'magic', start: 4.40, end: 4.72, confidence: 0.91, punctuated_word: 'Magic.'},
+
+            // Block 3 (Expanded data)
+            {word: 'its', start: 5.10, end: 5.40, confidence: 0.99, punctuated_word: "It's"},
+            {word: 'surprisingly', start: 5.40, end: 6.20, confidence: 0.95, punctuated_word: 'surprisingly'},
+            {word: 'expensive', start: 6.20, end: 6.90, confidence: 0.98, punctuated_word: 'expensive!'}
         ];
+
+        // --- PARSING UTILS ---
+        
+        function parseSRTTime(timeString) {
+            // 00:00:02,160 -> seconds
+            const parts = timeString.split(':');
+            const secondsParts = parts[2].split(',');
+            const hours = parseInt(parts[0], 10);
+            const minutes = parseInt(parts[1], 10);
+            const seconds = parseInt(secondsParts[0], 10);
+            const ms = parseInt(secondsParts[1], 10);
+            return (hours * 3600) + (minutes * 60) + seconds + (ms / 1000);
+        }
+
+        function parseSRT(data) {
+            const blocks = [];
+            const parts = data.trim().split(/\n\s*\n/); // Split by empty lines
+            
+            parts.forEach(part => {
+                const lines = part.split('\n');
+                if(lines.length >= 3) {
+                    const timeLine = lines[1];
+                    const [startStr, endStr] = timeLine.split(' --> ');
+                    blocks.push({
+                        id: lines[0],
+                        start: parseSRTTime(startStr),
+                        end: parseSRTTime(endStr),
+                        text: lines.slice(2).join(' ') // Join remaining lines as text
+                    });
+                }
+            });
+            return blocks;
+        }
+
+        const srtBlocks = parseSRT(srtRaw);
+        
+        // Initialize words object
+        let allWords = rawData.map(item => ({
+            text: item.punctuated_word, 
+            start: item.start,
+            end: item.end,
+            alpha: 0,
+            width: 0,
+            active: false
+        }));
 
         // --- STATE VARIABLES ---
         let tubeColor = '#00f7ff';
         let haloColor = '#0051ff';
-
-        let activeIndex = 0;
+        let isPlaying = false;
+        let startTimestamp = 0;
+        let playbackTime = 0; 
         
-        // Timing Logic
-        let lastSwitchTime = 0;
-        let sequenceInterval = 600; // ms between switches (Controlled by Tempo Slider)
-        
-        // Physics Logic
-        let attackSpeed = 0.03;     // alpha added per frame
-        let decaySpeed = 0.02;      // alpha removed per frame
+        let attackSpeed = 0.15;
+        let decaySpeed = 0.05;
 
         mainCanvas.width = WIDTH;
         mainCanvas.height = HEIGHT;
 
         // --- INPUT HANDLERS ---
-        const tempoSlider = document.getElementById('tempoSlider');
         const attackSlider = document.getElementById('attackSlider');
         const decaySlider = document.getElementById('decaySlider');
+        const attackValDisplay = document.getElementById('attackVal');
+        const decayValDisplay = document.getElementById('decayVal');
         const colorTubePicker = document.getElementById('colorTube');
         const colorHaloPicker = document.getElementById('colorHalo');
-        
-        // Note: We reverse the logic for the Tempo slider so dragging right feels "Faster"
-        // But in code, a smaller interval means faster.
-        tempoSlider.addEventListener('input', (e) => {
-            // Mapping: Slider value is explicitly MS delay
-            sequenceInterval = parseInt(e.target.value); 
+
+        attackSlider.addEventListener('input', (e) => {
+            attackSpeed = parseFloat(e.target.value);
+            attackValDisplay.innerText = attackSpeed.toFixed(2);
         });
 
-        attackSlider.addEventListener('input', (e) => attackSpeed = parseFloat(e.target.value));
-        decaySlider.addEventListener('input', (e) => decaySpeed = parseFloat(e.target.value));
+        decaySlider.addEventListener('input', (e) => {
+            decaySpeed = parseFloat(e.target.value);
+            decayValDisplay.innerText = decaySpeed.toFixed(2);
+        });
+
         colorTubePicker.addEventListener('input', (e) => tubeColor = e.target.value);
         colorHaloPicker.addEventListener('input', (e) => haloColor = e.target.value);
 
+        playBtn.addEventListener('click', () => {
+            if(isPlaying) return;
+            allWords.forEach(w => w.alpha = 0);
+            isPlaying = true;
+            startTimestamp = performance.now();
+            playBtn.disabled = true;
+            playBtn.innerText = "PLAYING...";
+        });
+
         // --- CORE LOGIC ---
 
-        function updatePhysics(currentTime) {
+        function updatePhysics(timestamp) {
             
-            // 1. SEQUENCE LOGIC (Time-based)
-            // ==============================
-            // We switch based on the clock, ignoring whether the word is fully lit or not
-            if (currentTime - lastSwitchTime > sequenceInterval) {
-                activeIndex = (activeIndex + 1) % words.length;
-                lastSwitchTime = currentTime;
+            if (isPlaying) {
+                playbackTime = (timestamp - startTimestamp) / 1000;
+                timerDisplay.innerText = playbackTime.toFixed(2) + "s";
+
+                const lastWordEnd = allWords[allWords.length-1].end;
+                if (playbackTime > lastWordEnd + 2.0) {
+                    isPlaying = false;
+                    playBtn.disabled = false;
+                    playBtn.innerText = "REPLAY";
+                    playbackTime = 0;
+                }
             }
 
-            // 2. BRIGHTNESS LOGIC (Physics-based)
-            // ===================================
-            words.forEach((word, index) => {
-                if (index === activeIndex) {
-                    // This is the active word: Heat it up!
-                    if (word.alpha < 1.0) {
-                        word.alpha += attackSpeed;
-                    }
-                    if (word.alpha > 1.0) word.alpha = 1.0; // Clamp max
+            allWords.forEach(word => {
+                const isActive = (playbackTime >= word.start && playbackTime <= word.end);
+
+                if (isActive) {
+                    if (word.alpha < 1.0) word.alpha += attackSpeed;
+                    if (word.alpha > 1.0) word.alpha = 1.0; 
                 } else {
-                    // This is not active: Cool it down!
-                    if (word.alpha > 0) {
-                        word.alpha -= decaySpeed;
-                    }
-                    if (word.alpha < 0) word.alpha = 0; // Clamp min
+                    if (word.alpha > 0) word.alpha -= decaySpeed;
+                    if (word.alpha < 0) word.alpha = 0;
                 }
             });
         }
@@ -238,30 +364,31 @@
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
 
-            // Draw Dark Tube (Background)
+            // Always draw the "off" state (dim wire)
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 4;
             ctx.lineJoin = 'round';
             ctx.strokeText(word.text, x, y);
             
+            // Draw "On" state
             if (alpha > 0.01) {
                 ctx.globalAlpha = alpha;
-
-                // Outer Glow
                 ctx.globalCompositeOperation = 'lighter'; 
+                
+                // Outer Halo
                 ctx.shadowColor = haloColor;
-                ctx.shadowBlur = 40;
+                ctx.shadowBlur = 30;
                 ctx.fillStyle = haloColor;
                 ctx.fillText(word.text, x, y); 
 
-                // Inner Tube
+                // Core Glow
                 ctx.shadowColor = tubeColor;
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 10;
                 ctx.strokeStyle = tubeColor;
                 ctx.lineWidth = 4;
                 ctx.strokeText(word.text, x, y);
 
-                // Hot Core (White)
+                // Center White Hot filament
                 if (alpha > 0.5) {
                     ctx.shadowBlur = 5;
                     const rgb = hexToRgb(tubeColor);
@@ -279,29 +406,45 @@
             ctx.restore();
         }
 
-        function render(currentTime) {
-            // Pass the timestamp to physics
-            updatePhysics(currentTime);
+        function render(timestamp) {
+            updatePhysics(timestamp);
             
             ctx.clearRect(0, 0, WIDTH, HEIGHT);
-
-            // Centering Logic
             ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
-            let totalWidth = 0;
-            words.forEach(w => {
-                w.width = ctx.measureText(w.text).width;
-                totalWidth += w.width;
-            });
-            totalWidth += (words.length - 1) * SPACING;
 
-            let currentX = (WIDTH - totalWidth) / 2;
-            const Y = HEIGHT / 2;
+            // 1. Find Current SRT Block
+            // We want to find a block where current time is roughly within start/end
+            // We give it a little padding so text doesn't disappear instantly if there is a small gap
+            const activeBlock = srtBlocks.find(b => playbackTime >= b.start && playbackTime <= b.end + 0.2);
 
-            // Draw Logic
-            words.forEach(word => {
-                drawWord(word, currentX, Y);
-                currentX += word.width + SPACING;
-            });
+            if (activeBlock) {
+                
+                // 2. Filter words that belong to this block
+                // We map the words to the block by checking if the word's start time is inside the block time
+                const visibleWords = allWords.filter(w => w.start >= activeBlock.start - 0.5 && w.start <= activeBlock.end + 0.5);
+
+                if (visibleWords.length > 0) {
+                    // 3. Layout these specific words
+                    let totalWidth = 0;
+                    visibleWords.forEach(w => {
+                        w.width = ctx.measureText(w.text).width;
+                        totalWidth += w.width;
+                    });
+                    totalWidth += (visibleWords.length - 1) * SPACING;
+
+                    let currentX = (WIDTH - totalWidth) / 2;
+                    const Y = HEIGHT / 2;
+
+                    // 4. Draw them
+                    visibleWords.forEach(word => {
+                        drawWord(word, currentX, Y);
+                        currentX += word.width + SPACING;
+                    });
+                }
+            } else {
+                // Optional: Draw a "Listening..." or blank state if no SRT block is active
+                // For now, we leave it blank to simulate silence between subtitles
+            }
 
             requestAnimationFrame(render);
         }
