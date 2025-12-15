@@ -120,14 +120,18 @@ async function generateHolographicCaptionsForVideo(accountId, sourceVideoId, fon
     // 2. Probe video for metadata (Critical for the generator)
     const videoInfo = await probeVideo(localInputFile);
 
-    // 3. Get SRT from database
-    const query = `SELECT srt FROM transcripts WHERE account_id=$1 AND video_id=$2`;
+    console.log(videoInfo)
+    // 3. Get SRT and words from database
+    const query = `SELECT srt, words FROM transcripts WHERE account_id=$1 AND video_id=$2`;
     const captions = await pool.query(query, [accountId, sourceVideoId]);
 
     if (!captions.rows.length) {
         throw new Error("No captions found for this file.");
     }
     await fs.writeFile(srtFile, captions.rows[0].srt);
+
+    // Parse words if available
+    const words = captions.rows[0].words ? JSON.parse(captions.rows[0].words) : null;
 
     // 4. Generate holographic captions
     await generateStyledCaptions({
@@ -141,7 +145,9 @@ async function generateHolographicCaptionsForVideo(accountId, sourceVideoId, fon
       height: videoInfo.height,
       captionStyle: style,
       duration: videoInfo.duration,
-      fps: videoInfo.fps || 30
+      fps: videoInfo.fps || 30,
+      rotation: videoInfo.rotation || 0,
+      words: words
     });
 
     // 5. Create new video entry for captioned video
@@ -198,7 +204,7 @@ async function probeVideo(videoPath) {
     execFile(ffprobePath.path, [
       '-v', 'error',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height,duration',
+      '-show_entries', 'stream=width,height,duration:stream_tags=rotate',
       '-of', 'json',
       videoPath
     ], (error, stdout, stderr) => {
@@ -208,10 +214,21 @@ async function probeVideo(videoPath) {
       } else {
         const data = JSON.parse(stdout);
         const stream = data.streams[0];
+        
+        let width = stream.width;
+        let height = stream.height;
+        
+        // Check rotation metadata and swap dimensions if needed
+        const rotation = stream.tags?.rotate ? parseInt(stream.tags.rotate) : 0;
+        if (rotation === 90 || rotation === 270) {
+          [width, height] = [height, width]; // Swap dimensions
+        }
+        
         resolve({
-          width: stream.width,
-          height: stream.height,
-          duration: parseFloat(stream.duration)
+          width: width,
+          height: height,
+          duration: parseFloat(stream.duration),
+          rotation: rotation
         });
       }
     });

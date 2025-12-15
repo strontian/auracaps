@@ -1,18 +1,20 @@
 import fs from 'fs';
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import { spawn } from 'child_process';
-import { 
-  renderHolographicEffect, 
-  renderLEDEffect, 
+import {
+  renderHolographicEffect,
+  renderLEDEffect,
   detectLEDDots,
-  renderRainbowEffect // <--- Added import
+  renderRainbowEffect,
+  renderNeonEffect
 } from '../public/effects.mjs';
 
 // Register the fonts
 // Ensure you have the Doto font file in your fonts folder
 registerFont('public/fonts/Modak-Regular.ttf', { family: 'Modak' });
-registerFont('public/fonts/Doto-Medium.ttf', { family: 'Doto' }); 
-registerFont('public/fonts/Tinos-Regular.ttf', { family: 'Tinos' }); 
+registerFont('public/fonts/Doto-Medium.ttf', { family: 'Doto' });
+registerFont('public/fonts/Tinos-Regular.ttf', { family: 'Tinos' });
+registerFont('public/fonts/Beon-Regular.ttf', { family: 'Beon' }); 
 
 
 // Parse SRT file
@@ -45,7 +47,7 @@ function parseSRT(filepath) {
 function getSubtitleAtTime(subtitles, timestamp) {
   for (const sub of subtitles) {
     if (timestamp >= sub.startTime && timestamp < sub.endTime) {
-      return sub.text;
+      return sub;
     }
   }
   return null;
@@ -71,13 +73,15 @@ export async function generateStyledCaptions({
   srtPath,
   holoImagePath, // Only required if captionStyle is 'holographic'
   outputPath = 'output.mp4',
-  captionStyle = 'holographic', // Options: 'holographic' | 'led' | 'rainbow'
+  captionStyle = 'holographic', // Options: 'holographic' | 'led' | 'rainbow' | 'neon'
   fontSize,
   textHeightPercent = 50,
   width,
   height,
   fps = 30,
-  duration
+  duration,
+  rotation = 0,
+  words = null // Word-level timing data for neon effect
 }) {
   const startTime = Date.now();
   console.log(`Starting video processing with style: ${captionStyle}...\n`);
@@ -97,35 +101,32 @@ export async function generateStyledCaptions({
   const auxCanvas = createCanvas(width, height);
   const auxCtx = auxCanvas.getContext('2d', { alpha: false }); 
 
-  // Start ffmpeg process
+let rotationFilter = ""; 
+if (rotation === -90) rotationFilter = ",transpose=1";  // -90° = counterclockwise
+else if (rotation === 90) rotationFilter = ",transpose=2";   // 90° = clockwise
+else rotationFilter = ""; // No rotation if 0
+
+  const filterComplex = `[1:v]zscale=rin=full:min=709:pin=709:tin=709:r=limited:m=bt2020nc:p=bt2020:t=arib-std-b67[overlay];[0:v][overlay]overlay=0:0:format=auto${rotationFilter}`;
+
   console.log('Starting FFmpeg process...');
   const ffmpegArgs = [
     '-y',
     '-i', videoPath,
     '-f', 'rawvideo',
-    // node-canvas 'raw' is usually BGRA on Intel/Apple Silicon (little-endian)
-    // If colors look inverted (Blue text is Red), change this to 'rgba'
     '-pix_fmt', 'bgra', 
     '-s', `${width}x${height}`,
     '-r', fps.toString(),
     '-i', '-', // Read from stdin
-    
-    // OVERLAY FIX: 
-    // We force the overlay to handle the format automatically to prevent 
-    // premature color conversion.
-    '-filter_complex', '[0:v][1:v]overlay=0:0:format=auto',
-    
+    '-filter_complex', filterComplex,
     '-c:v', 'libx264',
-    
-    // --- COLOR CORRECTION FLAGS ---
-    // This tells players: "This is standard HD video (BT.709)"
-    '-color_primaries', 'bt709',
-    '-color_trc', 'bt709',
-    '-colorspace', 'bt709',
-    
-    // Ensure the output pixel format is standard for web/players
-    '-pix_fmt', 'yuv420p', 
-    
+    //'-profile:v', 'high10',          
+    //'-pix_fmt', 'yuv420p10le',       
+    //'-color_primaries', 'bt2020',
+    //'-color_trc', 'arib-std-b67',
+    //'-colorspace', 'bt2020nc',
+    //'-color_range', 'tv',
+    '-preset', 'slow',
+    '-crf', '18',
     outputPath
   ];
 
@@ -165,11 +166,12 @@ export async function generateStyledCaptions({
     const timestamp = frame / fps;
     totalCanvasTime += Date.now() - canvasStart;
 
-    // Get current subtitle text
-    const text = getSubtitleAtTime(subtitles, timestamp);
+    // Get current subtitle
+    const subtitle = getSubtitleAtTime(subtitles, timestamp);
+    const text = subtitle ? subtitle.text : null;
 
     const renderStart = Date.now();
-    
+
     if (text) {
       if (captionStyle === 'led') {
         // --- LED STYLE LOGIC ---
@@ -197,7 +199,7 @@ export async function generateStyledCaptions({
 
       } else if (captionStyle === 'rainbow') {
         // --- RAINBOW STYLE LOGIC ---
-        
+
         // Reset other caches to be safe
         lastText = null;
         currentDots = [];
@@ -208,6 +210,24 @@ export async function generateStyledCaptions({
           textHeightPercent: textHeightPercent,
           state: rainbowState,
           auxCanvas: auxCanvas // <--- Passing the reusable canvas here
+        });
+
+      } else if (captionStyle === 'neon') {
+        // --- NEON STYLE LOGIC ---
+
+        // Reset other caches to be safe
+        lastText = null;
+        currentDots = [];
+
+        renderNeonEffect(ctx, {
+          text: text,
+          allWords: words,
+          subtitle: subtitle,
+          timestamp: timestamp,
+          fontSize: fontSize,
+          textHeightPercent: textHeightPercent,
+          tubeColor: '#00f7ff',
+          haloColor: '#0051ff'
         });
 
       } else {

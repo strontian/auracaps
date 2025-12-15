@@ -579,48 +579,14 @@
         renderRainbowEffect(ctx, { text, fontSize, textHeightPercent, state: rainbowState, auxCanvas });
       }
       else if (currentStyle === 'neon') {
-        // 1. Get words for this block with a TIGHTER filter
-        // We reduced the buffer from 0.5 to 0.05 to prevent grabbing words from the previous sentence
-        const blockWords = allWords.filter(w => 
-            w.start >= activeBlock.startTime - 0.05 && 
-            w.start < activeBlock.endTime + 0.05
-        );
-
-        // 2. Map them to the format expected by renderNeonEffect
-        const activeWords = blockWords.map(w => {
-            const attackDuration = 0.15; 
-            const decayDuration = 0.3;   
-            let alpha = 0.05;            
-
-            if (timestamp >= w.start && timestamp <= w.end) {
-                const timeSinceStart = timestamp - w.start;
-                if (timeSinceStart < attackDuration) {
-                    const progress = timeSinceStart / attackDuration;
-                    alpha = 0.05 + ((1.0 - 0.05) * progress);
-                } else {
-                    alpha = 1.0;
-                }
-            } 
-            else if (timestamp > w.end && timestamp < (w.end + decayDuration)) {
-                const timeSinceEnd = timestamp - w.end;
-                const progress = timeSinceEnd / decayDuration;
-                alpha = 1.0 - ((1.0 - 0.05) * progress);
-            }
-
-            return {
-                text: w.punctuated_word || w.word,
-                alpha: Math.max(0.05, Math.min(1.0, alpha)) 
-            };
-        });
-
-        // 3. Sanitize Text to match arrays
-        // We replace multiple spaces with single spaces to ensure the renderer's split(' ') 
-        // matches our word list count exactly.
+        // Sanitize Text to match word array
         const cleanText = text.replace(/[ \t]+/g, ' ').trim();
 
         renderNeonEffect(ctx, {
             text: cleanText,
-            words: activeWords,
+            allWords: allWords,
+            subtitle: activeBlock,
+            timestamp: timestamp,
             fontSize: fontSize,
             textHeightPercent: textHeightPercent,
             tubeColor: '#00f7ff',

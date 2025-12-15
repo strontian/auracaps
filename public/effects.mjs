@@ -406,7 +406,10 @@ export function renderLEDEffect(ctx, opts) {
 export function renderNeonEffect(ctx, opts) {
   const {
     text,
-    words, // Array of word objects { text, alpha } corresponding to the block
+    allWords = null,    // Full word array from transcript (for timing calculations)
+    words = null,       // Pre-processed word array { text, alpha } (fallback for compatibility)
+    subtitle = null,    // Subtitle object { startTime, endTime, text }
+    timestamp = null,   // Current video timestamp
     fontSize,
     textHeightPercent,
     tubeColor = '#00f7ff',
@@ -415,13 +418,50 @@ export function renderNeonEffect(ctx, opts) {
 
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const fontFamily = 'Beon'; 
+  const fontFamily = 'Beon';
   const spacing = 10; // Space between words
+
+  // Process words with timing if allWords is provided
+  let processedWords = words; // Default to pre-processed words if provided
+
+  if (allWords && subtitle && timestamp !== null) {
+    // Filter words for the current subtitle block
+    const blockWords = allWords.filter(w =>
+      w.start >= subtitle.startTime - 0.05 &&
+      w.start < subtitle.endTime + 0.05
+    );
+
+    // Calculate alpha values based on timing
+    processedWords = blockWords.map(w => {
+      const attackDuration = 0.15;
+      const decayDuration = 0.3;
+      let alpha = 0.05;
+
+      if (timestamp >= w.start && timestamp <= w.end) {
+        const timeSinceStart = timestamp - w.start;
+        if (timeSinceStart < attackDuration) {
+          const progress = timeSinceStart / attackDuration;
+          alpha = 0.05 + ((1.0 - 0.05) * progress);
+        } else {
+          alpha = 1.0;
+        }
+      } else if (timestamp > w.end && timestamp < (w.end + decayDuration)) {
+        const timeSinceEnd = timestamp - w.end;
+        const progress = timeSinceEnd / decayDuration;
+        alpha = 1.0 - ((1.0 - 0.05) * progress);
+      }
+
+      return {
+        text: w.punctuated_word || w.word,
+        alpha: Math.max(0.05, Math.min(1.0, alpha))
+      };
+    });
+  }
 
   // 1. Use helper to calculate line breaks based on canvas width
   const padding = 50;
   const maxWidth = canvasWidth - (padding * 2);
-  
+
   // Note: We use the existing wrapText helper to get the visual lines
   ctx.font = `${fontSize}px ${fontFamily}`;
   const lines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
@@ -435,7 +475,7 @@ export function renderNeonEffect(ctx, opts) {
   ctx.save();
   ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textBaseline = 'alphabetic'; // wrapText helper assumes this for line calculation usually, but we adjust Y below
-  
+
   // We need to track which word object we are drawing from the passed 'words' array
   let wordIndex = 0;
 
@@ -453,9 +493,9 @@ export function renderNeonEffect(ctx, opts) {
     const lineWords = line.split(' ');
 
     lineWords.forEach((wText) => {
-      // Find the specific word data. 
+      // Find the specific word data.
       // Safety check: ensure we don't go out of bounds if text doesn't match words array perfectly
-      const wordData = words[wordIndex] || { text: wText, alpha: 0 };
+      const wordData = processedWords ? (processedWords[wordIndex] || { text: wText, alpha: 0 }) : { text: wText, alpha: 0 };
       const alpha = wordData.alpha;
 
       // --- DRAWING LOGIC EXTRACTED FROM WEBPAGE ---
