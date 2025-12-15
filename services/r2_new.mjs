@@ -20,7 +20,21 @@ const S3 = new S3Client({
   },
 })
 
-export async function getViewUrl(bucketName, fileName, dispo = fileName) {
+export async function getViewUrl(bucketName, fileName) {
+  try {
+    const url = await getSignedUrl(S3, new GetObjectCommand({
+      Bucket: bucketName,
+      Key: fileName,
+      Expires: 3600, // URL expiration time in seconds
+    }))
+    return url
+  } catch (error) {
+    console.error('Error generating S3 signed URL', error)
+    throw error
+  }
+}
+
+export async function getDownloadUrl(bucketName, fileName, dispo = fileName) {
   try {
     const url = await getSignedUrl(S3, new GetObjectCommand({
       Bucket: bucketName,

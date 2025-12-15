@@ -4,7 +4,7 @@ import { transcribe } from '../services/deepgram.mjs'
 import { getUploadUrl } from '../services/r2_new.mjs'
 import { srt } from "@deepgram/captions";
 import { promises as fs } from 'fs'
-import { uploadFile, downloadFile, getViewUrl } from '..//services/r2_new.mjs'
+import { uploadFile, downloadFile, getViewUrl, getDownloadUrl } from '..//services/r2_new.mjs'
 import { execFile } from 'child_process'
 import ffprobePath from 'ffprobe-static'
 import { generateStyledCaptions } from '../services/local_caption.mjs'; 
@@ -271,7 +271,7 @@ router.get('/captions/dl_token', async (req, res) => {
     const r2Key = videoResult.rows[0].r2_key
     const downloadFilename = videoResult.rows[0].filename
 
-    let videoToken = await getViewUrl('tv-captions', r2Key, downloadFilename)
+    let videoToken = await getDownloadUrl('tv-captions', r2Key, downloadFilename)
     res.json(videoToken)
   } catch (error) {
     console.error('Error getting download token:', error)
@@ -396,6 +396,7 @@ router.post('/video_upload_token', async (req, res) => {
   let fileType = req.body.fileType
   let accountId = req.session.accountId
 
+  console.log(req.body)
   if(!accountId || !videoId) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
