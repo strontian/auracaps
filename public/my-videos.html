@@ -342,10 +342,12 @@
 
             if (!videos || videos.length === 0) {
                 emptyContainer.style.display = 'block';
+                videosGrid.style.display = 'none';  // Add this line
                 return;
             }
 
             videosGrid.style.display = 'grid';
+            emptyContainer.style.display = 'none';  // Add this line
             videosGrid.innerHTML = videos.map(video => createVideoCard(video)).join('');
         }
 

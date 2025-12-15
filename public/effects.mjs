@@ -402,14 +402,13 @@ export function renderLEDEffect(ctx, opts) {
   
   ctx.globalAlpha = 1.0;
 }
-
 export function renderNeonEffect(ctx, opts) {
   const {
     text,
-    allWords = null,    // Full word array from transcript (for timing calculations)
-    words = null,       // Pre-processed word array { text, alpha } (fallback for compatibility)
-    subtitle = null,    // Subtitle object { startTime, endTime, text }
-    timestamp = null,   // Current video timestamp
+    allWords = null,
+    words = null,
+    subtitle = null,
+    timestamp = null,
     fontSize,
     textHeightPercent,
     tubeColor = '#00f7ff',
@@ -419,23 +418,33 @@ export function renderNeonEffect(ctx, opts) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
   const fontFamily = 'Beon';
-  const spacing = 10; // Space between words
 
-  // Process words with timing if allWords is provided
-  let processedWords = words; // Default to pre-processed words if provided
+  // --- HELPER: Convert Hex to RGB numbers (e.g., "0, 247, 255") ---
+  const hexToRgb = (hex) => {
+    const cleanHex = hex.replace('#', '');
+    const bigint = parseInt(cleanHex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `${r}, ${g}, ${b}`;
+  };
+
+  const tubeRgb = hexToRgb(tubeColor);
+  const haloRgb = hexToRgb(haloColor);
+
+  // --- 1. PRE-PROCESS WORDS/TIMING (Same as before) ---
+  let processedWords = words; 
 
   if (allWords && subtitle && timestamp !== null) {
-    // Filter words for the current subtitle block
     const blockWords = allWords.filter(w =>
       w.start >= subtitle.startTime - 0.05 &&
       w.start < subtitle.endTime + 0.05
     );
 
-    // Calculate alpha values based on timing
     processedWords = blockWords.map(w => {
       const attackDuration = 0.15;
       const decayDuration = 0.3;
-      let alpha = 0.05;
+      let alpha = 0.05; // Base level
 
       if (timestamp >= w.start && timestamp <= w.end) {
         const timeSinceStart = timestamp - w.start;
@@ -458,95 +467,94 @@ export function renderNeonEffect(ctx, opts) {
     });
   }
 
-  // 1. Use helper to calculate line breaks based on canvas width
+  // --- 2. LAYOUT CALCULATION ---
   const padding = 50;
   const maxWidth = canvasWidth - (padding * 2);
 
-  // Note: We use the existing wrapText helper to get the visual lines
   ctx.font = `${fontSize}px ${fontFamily}`;
   const lines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
-
-  // 2. Calculate vertical starting position
+  
   const position = calculateTextPosition(
     canvasHeight, lines.length, fontSize, textHeightPercent
   );
 
-  // 3. Render Loop
+  // --- 3. RENDER LOOP ---
   ctx.save();
   ctx.font = `${fontSize}px ${fontFamily}`;
-  ctx.textBaseline = 'alphabetic'; // wrapText helper assumes this for line calculation usually, but we adjust Y below
+  ctx.textBaseline = 'alphabetic'; 
 
-  // We need to track which word object we are drawing from the passed 'words' array
   let wordIndex = 0;
 
   lines.forEach((line, lineIdx) => {
-    // Re-calculate X centering for this specific line
     const lineWidth = ctx.measureText(line).width; 
     let currentX = (canvasWidth - lineWidth) / 2;
-    
-    // We align based on the helper's calculated Y, adding font size to push it down from baseline if needed
-    // calculateTextPosition returns the top-left Y of the first line usually, depending on implementation.
-    // Standardizing to the helper provided:
     const currentY = position.startY + (lineIdx * position.lineHeight);
 
-    // Split line back into words to draw them individually with unique alphas
     const lineWords = line.split(' ');
 
     lineWords.forEach((wText) => {
-      // Find the specific word data.
-      // Safety check: ensure we don't go out of bounds if text doesn't match words array perfectly
+      // Get word data
       const wordData = processedWords ? (processedWords[wordIndex] || { text: wText, alpha: 0 }) : { text: wText, alpha: 0 };
       const alpha = wordData.alpha;
 
-      // --- DRAWING LOGIC EXTRACTED FROM WEBPAGE ---
-      
-      // 1. Draw "Off" state (Dim Wire)
-      ctx.fillStyle = 'rgba(0,0,0,0)'; // No fill for the wire
-      ctx.strokeStyle = '#222';
+      // --- DRAW STEP 1: The "Off" State (Wire) ---
+      // Drawn fully opaque, but dark grey.
+      ctx.fillStyle = 'rgba(0,0,0,0)'; 
+      ctx.strokeStyle = '#222'; 
       ctx.lineWidth = 4;
       ctx.lineJoin = 'round';
       ctx.strokeText(wText, currentX, currentY);
 
-      // 2. Draw "On" state
+      // --- DRAW STEP 2: The "On" State (Glow) ---
+      // We perform a check for very low alpha purely for performance optimization,
+      // but the visual fade is handled by the rgba string below.
       if (alpha > 0.01) {
         ctx.save();
-        ctx.globalAlpha = alpha;
+        
+        // Use 'lighter' to make overlapping layers glow brighter
         ctx.globalCompositeOperation = 'lighter';
 
-        // Outer Halo
-        ctx.shadowColor = haloColor;
+        // NOTE: We do NOT set ctx.globalAlpha. 
+        // We inject 'alpha' directly into the colors to fix Safari shadow bugs.
+
+        // A. Outer Halo (Fill + Wide Shadow)
+        ctx.shadowColor = `rgba(${haloRgb}, ${alpha})`; 
         ctx.shadowBlur = 30;
-        ctx.fillStyle = haloColor;
+        ctx.fillStyle = `rgba(${haloRgb}, ${alpha})`;
         ctx.fillText(wText, currentX, currentY);
 
-        // Core Glow
-        ctx.shadowColor = tubeColor;
+        // B. Core Glow (Stroke + Tight Shadow)
+        ctx.shadowColor = `rgba(${tubeRgb}, ${alpha})`; 
         ctx.shadowBlur = 10;
-        ctx.strokeStyle = tubeColor;
+        ctx.strokeStyle = `rgba(${tubeRgb}, ${alpha})`; 
         ctx.lineWidth = 4;
         ctx.strokeText(wText, currentX, currentY);
 
-        // Center White Hot filament
+        // C. White Filament (Hot Center)
+        // Only draw this when the light is getting bright (alpha > 0.5)
+        // to simulate the bulb heating up to white-hot.
         if (alpha > 0.5) {
           ctx.shadowBlur = 5;
-          // Simple RGB conversion for the glow transparency
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
+          // We scale the white alpha so it fades in smoothly starting at 0.5
+          // (Math to map 0.5->1.0 input to 0.0->1.0 output)
+          const whiteAlpha = (alpha - 0.5) * 2; 
+          
+          ctx.strokeStyle = `rgba(255, 255, 255, ${whiteAlpha})`; 
           ctx.lineWidth = 2;
           ctx.strokeText(wText, currentX, currentY);
 
-          if (alpha > 0.8) {
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1;
-            ctx.strokeText(wText, currentX, currentY);
+          // Extra hot white core for 100% brightness
+          if (alpha > 0.9) {
+             ctx.strokeStyle = `rgba(255, 255, 255, ${whiteAlpha})`; 
+             ctx.lineWidth = 1;
+             ctx.strokeText(wText, currentX, currentY);
           }
         }
+
         ctx.restore();
       }
 
-      // Move X cursor
       currentX += ctx.measureText(wText).width + ctx.measureText(' ').width;
-      
-      // Increment global word index
       wordIndex++;
     });
   });
