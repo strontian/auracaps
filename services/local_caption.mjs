@@ -106,7 +106,8 @@ if (rotation === -90) rotationFilter = ",transpose=1";  // -90° = counterclockw
 else if (rotation === 90) rotationFilter = ",transpose=2";   // 90° = clockwise
 else rotationFilter = ""; // No rotation if 0
 
-  const filterComplex = `[1:v]zscale=rin=full:min=709:pin=709:tin=709:r=limited:m=bt2020nc:p=bt2020:t=arib-std-b67[overlay];[0:v][overlay]overlay=0:0:format=auto${rotationFilter}`;
+const filterComplex = `[0:v][1:v]overlay=0:0:format=auto${rotationFilter}`;
+  //const filterComplex = `[1:v]zscale=rin=full:min=709:pin=709:tin=709:r=limited:m=bt2020nc:p=bt2020:t=arib-std-b67[overlay];[0:v][overlay]overlay=0:0:format=auto${rotationFilter}`;
 
   console.log('Starting FFmpeg process...');
   const ffmpegArgs = [
