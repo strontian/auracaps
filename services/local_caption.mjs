@@ -15,6 +15,7 @@ registerFont('public/fonts/Modak-Regular.ttf', { family: 'Modak' });
 registerFont('public/fonts/Doto-Medium.ttf', { family: 'Doto' });
 registerFont('public/fonts/Tinos-Regular.ttf', { family: 'Tinos' });
 registerFont('public/fonts/Beon-Regular.ttf', { family: 'Beon' }); 
+registerFont('public/fonts/DynaPuff-SemiBold.ttf', { family: 'DynaPuff' }); 
 
 
 // Parse SRT file
