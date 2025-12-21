@@ -369,7 +369,7 @@
                 statusBadge = '<div class="status-badge status-complete">✓ Captioned</div>';
                 actions = `
                     <a href="/download.html?id=${video.captionedVideoId}" class="btn btn-primary">View</a>
-                    <a href="/download.html?id=${video.captionedVideoId}" class="btn btn-secondary" download>Download</a>
+                    <button class="btn btn-secondary" onclick="downloadVideoFile(${video.captionedVideoId})">Download</button>
                     <button class="btn btn-danger" onclick="deleteVideo(${video.id}, '${escapeHtml(video.fileName)}')">Delete</button>
                 `;
             } else if (video.hasTranscript) {
@@ -414,6 +414,27 @@
 
             loadingContainer.style.display = 'none';
             errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        async function downloadVideoFile(videoId) {
+            try {
+                // Fetch download URL with proper Content-Disposition header
+                const response = await fetch(`${API_BASE}/captions/dl_token?id=${videoId}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to get download URL');
+                }
+
+                const downloadUrl = await response.json();
+
+                // Directly navigate to the presigned URL with download headers
+                // This works on iOS because the URL has Content-Disposition: attachment
+                window.location.href = downloadUrl;
+
+            } catch (error) {
+                console.error('Error downloading video:', error);
+                showError(`Failed to download video: ${error.message}`);
+            }
         }
 
         async function deleteVideo(videoId, fileName) {

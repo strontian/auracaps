@@ -110,7 +110,7 @@ async function generateHolographicCaptionsForVideo(accountId, sourceVideoId, fon
   // Generate random names for temp files
   const localInputFile = acctDir + generateRandomName() + extension;
   const srtFile = acctDir + generateRandomName() + ".srt";
-  const localFinishedPath = acctDir + generateRandomName() + ".mp4";
+  const localFinishedPath = acctDir + generateRandomName() + extension;
   const holoImagePath = 'public/images/holo.jpg';
 
   try {
@@ -151,7 +151,7 @@ async function generateHolographicCaptionsForVideo(accountId, sourceVideoId, fon
     });
 
     // 5. Create new video entry for captioned video
-    const captionedFilename = sourceFilename.replace(/(\.[^.]+)$/, '_captions.mp4')
+    const captionedFilename = sourceFilename.replace(/(\.[^.]+)$/, `_captions${extension}`)
     const captionedVideoResult = await pool.query(
       `INSERT INTO videos (account_id, filename, is_original)
        VALUES ($1, $2, $3)
@@ -159,7 +159,7 @@ async function generateHolographicCaptionsForVideo(accountId, sourceVideoId, fon
       [accountId, captionedFilename, false]
     )
     const destVideoId = captionedVideoResult.rows[0].id
-    const destR2Key = `${accountId}-${destVideoId}.mp4`
+    const destR2Key = `${accountId}-${destVideoId}${extension}`
 
     // Store the R2 key
     await pool.query(

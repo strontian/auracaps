@@ -200,7 +200,7 @@ export function renderHolographicEffect(ctx, opts) {
   
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const fontFamily = 'DynaPuff';
+  const fontFamily = 'Modak';
   
   // --- STEP 1: Stamp the Text (Create Stencil) ---
   const layout = stampText(ctx, text, fontSize, fontFamily, textHeightPercent);

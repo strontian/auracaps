@@ -314,53 +314,28 @@
 
         async function downloadVideo() {
             const downloadButton = document.getElementById('downloadButton');
-            
+
             try {
                 downloadButton.disabled = true;
                 downloadButton.textContent = 'Preparing download...';
-                
-                // Try to fetch download token with video ID parameter
-                try {
-                    let dlTokenUrl = '/api/captions/dl_token' + `?id=${videoId}`
-                    
-                    const response = await fetch(dlTokenUrl);
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.token) {
-                            // Use the download endpoint with token
-                            let downloadUrl = `/api/captions/download?token=${data.token}`;
-                            // Optionally include video ID in download URL as well
-                            if (videoId) {
-                                downloadUrl += `&id=${videoId}`;
-                            }
-                            window.location.href = downloadUrl;
-                            downloadButton.textContent = 'Download Video';
-                            downloadButton.disabled = false;
-                            return;
-                        }
-                    }
-                } catch (tokenError) {
-                    // If token endpoint fails, fall back to direct download
-                    console.log('Download token not available, using direct download');
-                }
-                
-                // Fallback: Direct download using the video URL
-                if (videoUrl) {
-                    // Create a temporary anchor element to trigger download
-                    const a = document.createElement('a');
-                    a.href = videoUrl;
 
-                    // Use video ID as filename
-                    if (videoId) {
-                        let filename = `video_${videoId}_captions.mp4`;
-                        a.download = filename;
-                    }
-                    
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    
+                // Fetch download URL with proper Content-Disposition header
+                let dlTokenUrl = '/api/captions/dl_token?id=' + videoId;
+
+                const response = await fetch(dlTokenUrl);
+
+                if (!response.ok) {
+                    throw new Error('Failed to get download URL');
+                }
+
+                const downloadUrl = await response.json();
+
+                // Directly navigate to the presigned URL with download headers
+                // This works on iOS because the URL has Content-Disposition: attachment
+                window.location.href = downloadUrl;
+
+                // Reset button after a short delay
+                setTimeout(() => {
                     downloadButton.innerHTML = `
                         <svg class="download-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
@@ -368,10 +343,8 @@
                         Download Video
                     `;
                     downloadButton.disabled = false;
-                } else {
-                    throw new Error('Video URL not available');
-                }
-                
+                }, 1000);
+
             } catch (error) {
                 showError('Error downloading video: ' + error.message);
                 downloadButton.innerHTML = `

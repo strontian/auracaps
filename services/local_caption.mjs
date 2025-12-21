@@ -73,7 +73,7 @@ export async function generateStyledCaptions({
   videoPath,
   srtPath,
   holoImagePath, // Only required if captionStyle is 'holographic'
-  outputPath = 'output.mp4',
+  outputPath = 'output.mov',
   captionStyle = 'holographic', // Options: 'holographic' | 'led' | 'rainbow' | 'neon'
   fontSize,
   textHeightPercent = 50,
@@ -120,18 +120,24 @@ const filterComplex = `[0:v][1:v]overlay=0:0:format=auto${rotationFilter}`;
     '-r', fps.toString(),
     '-i', '-', // Read from stdin
     '-filter_complex', filterComplex,
-    '-c:v', 'libx264',
+    '-c:v', 'libx265',           // Use HEVC like the original
+    '-pix_fmt', 'yuv420p10le',   // 10-bit 4:2:0 for HDR
+    '-colorspace', 'bt2020nc',   // Preserve color space
+    '-color_primaries', 'bt2020',
+    '-color_trc', 'arib-std-b67', // Preserve HLG transfer
+    '-preset', 'slow',
+    '-crf', '18',
+    '-c:a', 'copy',
+    outputPath
+  ];
+
+      //'-c:v', 'libx264',
     //'-profile:v', 'high10',          
     //'-pix_fmt', 'yuv420p10le',       
     //'-color_primaries', 'bt2020',
     //'-color_trc', 'arib-std-b67',
     //'-colorspace', 'bt2020nc',
     //'-color_range', 'tv',
-    '-preset', 'slow',
-    '-crf', '18',
-    outputPath
-  ];
-
   const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
   // Handle ffmpeg errors
