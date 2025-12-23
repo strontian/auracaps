@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HDR Neon Captions (WebGL BT.2020)</title>
+  <style>
+    @font-face {
+      font-family: 'Beon';
+      src: url('/fonts/Beon-Regular.ttf') format('truetype');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      color: white;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .info {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      max-width: 900px;
+      line-height: 1.6;
+    }
+
+    #video-container {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    #video-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    #video {
+      width: 100%;
+      display: block;
+    }
+
+    #glCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #controls {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      min-width: 120px;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      flex: 1;
+    }
+
+    .value-display {
+      min-width: 60px;
+      text-align: right;
+      font-family: monospace;
+    }
+
+    .color-input {
+      padding: 0.5rem;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>HDR Neon Captions - WebGL BT.2020</h1>
+
+  <div class="info">
+    <strong>Technical Info:</strong> This demo renders neon captions using WebGL in BT.2020 color space.
+    The output can be extracted as 10-bit RGB data and composited directly with HDR video without color space conversion.
+  </div>
+
+  <div id="video-container">
+    <div id="video-wrapper">
+      <video id="video" loop autoplay muted controls>
+        <source src="emily.mov" type="video/mp4">
+      </video>
+      <canvas id="glCanvas"></canvas>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="control-group">
+      <label>Font Size:</label>
+      <input type="range" id="fontSize" min="36" max="96" value="48">
+      <span class="value-display" id="fontSizeValue">48px</span>
+    </div>
+
+    <div class="control-group">
+      <label>Text Position:</label>
+      <input type="range" id="textHeight" min="0" max="100" value="7">
+      <span class="value-display" id="textHeightValue">7%</span>
+    </div>
+
+    <div class="control-group">
+      <label>Tube Color:</label>
+      <input type="color" id="tubeColor" class="color-input" value="#00f7ff">
+    </div>
+
+    <div class="control-group">
+      <label>Halo Color:</label>
+      <input type="color" id="haloColor" class="color-input" value="#0051ff">
+    </div>
+
+    <div class="control-group">
+      <label>Color Space:</label>
+      <select id="colorSpace" style="flex: 1; padding: 0.5rem; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white;">
+        <option value="bt2020">BT.2020 (HDR-ready)</option>
+        <option value="srgb">sRGB (Standard)</option>
+      </select>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // WebGL Neon Caption Renderer in BT.2020 Color Space
+    // ============================================================================
+
+    const video = document.getElementById('video');
+    const glCanvas = document.getElementById('glCanvas');
+    const gl = glCanvas.getContext('webgl2', {
+      alpha: true,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: false
+    });
+
+    if (!gl) {
+      alert('WebGL 2 not supported');
+      throw new Error('WebGL 2 not supported');
+    }
+
+    // Sample captions data
+    const subtitles = [
+      { startTime: 0, endTime: 3, text: "Hello World" },
+      { startTime: 3, endTime: 6, text: "WebGL Neon Effect" },
+      { startTime: 6, endTime: 9, text: "In BT.2020 Color Space" }
+    ];
+
+    const words = [
+      { word: "Hello", punctuated_word: "Hello", start: 0, end: 0.8 },
+      { word: "World", punctuated_word: "World", start: 0.9, end: 2.5 },
+      { word: "WebGL", punctuated_word: "WebGL", start: 3, end: 3.8 },
+      { word: "Neon", punctuated_word: "Neon", start: 3.9, end: 4.5 },
+      { word: "Effect", punctuated_word: "Effect", start: 4.6, end: 5.5 },
+      { word: "In", punctuated_word: "In", start: 6, end: 6.3 },
+      { word: "BT.2020", punctuated_word: "BT.2020", start: 6.4, end: 7.2 },
+      { word: "Color", punctuated_word: "Color", start: 7.3, end: 7.8 },
+      { word: "Space", punctuated_word: "Space", start: 7.9, end: 8.5 }
+    ];
+
+    let fontSize = 48;
+    let textHeightPercent = 7;
+    let tubeColor = '#00f7ff';
+    let haloColor = '#0051ff';
+    let useBT2020 = true;
+
+    // ============================================================================
+    // Shaders
+    // ============================================================================
+
+    const vertexShaderSource = `#version 300 es
+      in vec2 a_position;
+      in vec2 a_texCoord;
+      out vec2 v_texCoord;
+
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+        v_texCoord = a_texCoord;
+      }
+    `;
+
+    const fragmentShaderSource = `#version 300 es
+      precision highp float;
+
+      in vec2 v_texCoord;
+      out vec4 fragColor;
+
+      uniform sampler2D u_textTexture;
+      uniform vec3 u_tubeColor;
+      uniform vec3 u_haloColor;
+      uniform float u_alpha;
+      uniform bool u_useBT2020;
+
+      // sRGB to linear
+      vec3 srgbToLinear(vec3 srgb) {
+        return mix(
+          srgb / 12.92,
+          pow((srgb + 0.055) / 1.055, vec3(2.4)),
+          step(0.04045, srgb)
+        );
+      }
+
+      // BT.709 to BT.2020 matrix (simplified - for display RGB)
+      mat3 bt709ToBt2020 = mat3(
+        0.627404, 0.329283, 0.043313,
+        0.069097, 0.919541, 0.011362,
+        0.016391, 0.088013, 0.895595
+      );
+
+      void main() {
+        // Sample text (alpha channel)
+        float textAlpha = texture(u_textTexture, v_texCoord).a;
+
+        if (textAlpha < 0.01) {
+          fragColor = vec4(0.0);
+          return;
+        }
+
+        // Base neon color (tube)
+        vec3 tubeLinear = srgbToLinear(u_tubeColor);
+
+        // Halo effect (glow)
+        vec3 haloLinear = srgbToLinear(u_haloColor);
+
+        // Mix tube and halo based on text edge
+        float glowFactor = smoothstep(0.3, 0.7, textAlpha);
+        vec3 neonColor = mix(haloLinear, tubeLinear, glowFactor);
+
+        // Convert to BT.2020 if requested
+        if (u_useBT2020) {
+          neonColor = bt709ToBt2020 * neonColor;
+        }
+
+        // Apply word alpha (for timing animation)
+        float finalAlpha = textAlpha * u_alpha;
+
+        fragColor = vec4(neonColor, finalAlpha);
+      }
+    `;
+
+    // ============================================================================
+    // WebGL Setup
+    // ============================================================================
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+
+      return shader;
+    }
+
+    function createProgram(gl, vertexShader, fragmentShader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Program link error:', gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+      }
+
+      return program;
+    }
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const program = createProgram(gl, vertexShader, fragmentShader);
+
+    // Get attribute and uniform locations
+    const positionLoc = gl.getAttribLocation(program, 'a_position');
+    const texCoordLoc = gl.getAttribLocation(program, 'a_texCoord');
+    const textTextureLoc = gl.getUniformLocation(program, 'u_textTexture');
+    const tubeColorLoc = gl.getUniformLocation(program, 'u_tubeColor');
+    const haloColorLoc = gl.getUniformLocation(program, 'u_haloColor');
+    const alphaLoc = gl.getUniformLocation(program, 'u_alpha');
+    const useBT2020Loc = gl.getUniformLocation(program, 'u_useBT2020');
+
+    // Create buffers
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    const positions = new Float32Array([
+      -1, -1,
+       1, -1,
+      -1,  1,
+       1,  1
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+    const texCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+    const texCoords = new Float32Array([
+      0, 1,
+      1, 1,
+      0, 0,
+      1, 0
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+    // Create texture
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    // Canvas for rendering text
+    const textCanvas = document.createElement('canvas');
+    const textCtx = textCanvas.getContext('2d');
+
+    // ============================================================================
+    // Rendering Functions
+    // ============================================================================
+
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16) / 255,
+        g: parseInt(result[2], 16) / 255,
+        b: parseInt(result[3], 16) / 255
+      } : { r: 0, g: 1, b: 1 };
+    }
+
+    function getActiveSubtitle(time) {
+      return subtitles.find(s => time >= s.startTime && time < s.endTime);
+    }
+
+    function getWordAlpha(word, timestamp) {
+      const attackDuration = 0.15;
+      const decayDuration = 0.3;
+      let alpha = 0.05;
+
+      if (timestamp >= word.start && timestamp <= word.end) {
+        const timeSinceStart = timestamp - word.start;
+        if (timeSinceStart < attackDuration) {
+          const progress = timeSinceStart / attackDuration;
+          alpha = 0.05 + ((1.0 - 0.05) * progress);
+        } else {
+          alpha = 1.0;
+        }
+      } else if (timestamp > word.end && timestamp < (word.end + decayDuration)) {
+        const timeSinceEnd = timestamp - word.end;
+        const progress = timeSinceEnd / decayDuration;
+        alpha = 1.0 - ((1.0 - 0.05) * progress);
+      }
+
+      return Math.max(0.05, Math.min(1.0, alpha));
+    }
+
+    function renderTextToCanvas(text, timestamp) {
+      const width = glCanvas.width;
+      const height = glCanvas.height;
+
+      textCanvas.width = width;
+      textCanvas.height = height;
+
+      textCtx.clearRect(0, 0, width, height);
+
+      // Get active words for this subtitle
+      const subtitle = getActiveSubtitle(timestamp);
+      if (!subtitle) return;
+
+      const blockWords = words.filter(w =>
+        w.start >= subtitle.startTime - 0.05 &&
+        w.start < subtitle.endTime + 0.05
+      );
+
+      // Set up text rendering
+      textCtx.font = `${fontSize}px Beon, sans-serif`;
+      textCtx.textAlign = 'center';
+      textCtx.textBaseline = 'middle';
+
+      const yPosition = height - (height * textHeightPercent / 100) - fontSize;
+
+      // Measure total text width
+      const fullText = blockWords.map(w => w.punctuated_word).join(' ');
+      const totalWidth = textCtx.measureText(fullText).width;
+
+      // Render each word with individual alpha
+      let xOffset = (width - totalWidth) / 2;
+
+      blockWords.forEach(word => {
+        const wordAlpha = getWordAlpha(word, timestamp);
+        textCtx.fillStyle = `rgba(255, 255, 255, ${wordAlpha})`;
+
+        const wordText = word.punctuated_word + ' ';
+        const wordWidth = textCtx.measureText(wordText).width;
+
+        textCtx.fillText(wordText, xOffset + wordWidth / 2, yPosition);
+        xOffset += wordWidth;
+      });
+    }
+
+    function render() {
+      const timestamp = video.currentTime;
+
+      // Render text to canvas
+      renderTextToCanvas(subtitles[0]?.text || "", timestamp);
+
+      // Upload to WebGL texture
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textCanvas);
+
+      // Clear WebGL canvas
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      // Set up rendering state
+      gl.useProgram(program);
+
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      // Bind position
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.enableVertexAttribArray(positionLoc);
+      gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+      // Bind tex coords
+      gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+      gl.enableVertexAttribArray(texCoordLoc);
+      gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+
+      // Set uniforms
+      const tubeRgb = hexToRgb(tubeColor);
+      const haloRgb = hexToRgb(haloColor);
+
+      gl.uniform1i(textTextureLoc, 0);
+      gl.uniform3f(tubeColorLoc, tubeRgb.r, tubeRgb.g, tubeRgb.b);
+      gl.uniform3f(haloColorLoc, haloRgb.r, haloRgb.g, haloRgb.b);
+      gl.uniform1f(alphaLoc, 1.0);
+      gl.uniform1i(useBT2020Loc, useBT2020 ? 1 : 0);
+
+      // Draw
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      requestAnimationFrame(render);
+    }
+
+    // ============================================================================
+    // Event Listeners & Initialization
+    // ============================================================================
+
+    function resizeCanvas() {
+      glCanvas.width = video.videoWidth || 1920;
+      glCanvas.height = video.videoHeight || 1080;
+    }
+
+    video.addEventListener('loadedmetadata', () => {
+      resizeCanvas();
+      render();
+    });
+
+    // Controls
+    document.getElementById('fontSize').addEventListener('input', (e) => {
+      fontSize = parseInt(e.target.value);
+      document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+    });
+
+    document.getElementById('textHeight').addEventListener('input', (e) => {
+      textHeightPercent = parseInt(e.target.value);
+      document.getElementById('textHeightValue').textContent = textHeightPercent + '%';
+    });
+
+    document.getElementById('tubeColor').addEventListener('input', (e) => {
+      tubeColor = e.target.value;
+    });
+
+    document.getElementById('haloColor').addEventListener('input', (e) => {
+      haloColor = e.target.value;
+    });
+
+    document.getElementById('colorSpace').addEventListener('change', (e) => {
+      useBT2020 = e.target.value === 'bt2020';
+    });
+
+    // Start rendering when video loaded
+    if (video.readyState >= 2) {
+      resizeCanvas();
+      render();
+    }
+
+    // ============================================================================
+    // Export Function (for extracting BT.2020 RGB data)
+    // ============================================================================
+
+    window.extractBT2020Frame = function() {
+      // Read pixels from WebGL (this will be in BT.2020 if useBT2020 is true)
+      const pixels = new Uint8Array(glCanvas.width * glCanvas.height * 4);
+      gl.readPixels(0, 0, glCanvas.width, glCanvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+      console.log('Extracted frame in', useBT2020 ? 'BT.2020' : 'sRGB', 'color space');
+      console.log('Size:', glCanvas.width, 'x', glCanvas.height);
+      console.log('Data:', pixels.slice(0, 100)); // First 100 bytes
+
+      return {
+        width: glCanvas.width,
+        height: glCanvas.height,
+        data: pixels,
+        colorSpace: useBT2020 ? 'bt2020' : 'srgb'
+      };
+    };
+  </script>
+</body>
+</html>

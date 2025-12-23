@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Drip Effect - Creepster Font</title>
+    <style>
+        @font-face {
+            font-family: 'Creepster';
+            src: url('./fonts/Creepster-Regular.ttf') format('truetype');
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000000;
+            font-family: 'Segoe UI', sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        canvas {
+            box-shadow: 0 0 50px rgba(139, 0, 0, 0.8);
+            background-color: #000000;
+            border: 4px solid #330000;
+            border-radius: 8px;
+        }
+
+        .info {
+            margin-top: 20px;
+            font-family: 'Creepster', cursive;
+            font-size: 1.2rem;
+            color: #8B0000;
+            text-shadow: 0 0 10px rgba(139, 0, 0, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    <div class="info">Blood drips down the words...</div>
+
+    <script>
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+
+        // Configuration
+        const WIDTH = 1400;
+        const HEIGHT = 400;
+        const FONT_SIZE = 120;
+        const FONT_FAMILY = 'Creepster, cursive';
+
+        // Text to display
+        const TEXT = "BEWARE THE NIGHT";
+
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+
+        // Blood drop particles
+        const bloodDrops = [];
+
+        // Store letter positions for spawning drops
+        let letterPositions = [];
+
+        class BloodDrop {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.speed = 1 + Math.random() * 3;
+                this.size = 2 + Math.random() * 6;
+                this.opacity = 0.5 + Math.random() * 0.5;
+                this.length = 10 + Math.random() * 30; // Trail length
+            }
+
+            update() {
+                this.y += this.speed;
+                this.speed += 0.05; // Gravity acceleration
+                return this.y < HEIGHT; // Return false when off screen
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+
+                // Draw drip trail
+                const gradient = ctx.createLinearGradient(this.x, this.y - this.length, this.x, this.y);
+                gradient.addColorStop(0, 'rgba(139, 0, 0, 0)');
+                gradient.addColorStop(0.3, 'rgba(139, 0, 0, 0.4)');
+                gradient.addColorStop(1, 'rgba(139, 0, 0, 1)');
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(this.x - this.size/2, this.y - this.length, this.size, this.length);
+
+                // Draw drop head
+                ctx.fillStyle = '#8B0000';
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y, this.size, this.size * 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // Measure text and get letter positions
+        function calculateLetterPositions() {
+            ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            const totalWidth = ctx.measureText(TEXT).width;
+            const startX = (WIDTH - totalWidth) / 2;
+            const baseY = HEIGHT / 2 - 20;
+
+            letterPositions = [];
+            let currentX = startX;
+
+            for (let i = 0; i < TEXT.length; i++) {
+                const char = TEXT[i];
+                const charWidth = ctx.measureText(char).width;
+
+                if (char !== ' ') {
+                    // Store multiple points along the bottom of each letter
+                    const points = 3 + Math.floor(charWidth / 20);
+                    for (let p = 0; p < points; p++) {
+                        letterPositions.push({
+                            x: currentX + (charWidth * p / points),
+                            y: baseY + FONT_SIZE * 0.4,
+                            char: char
+                        });
+                    }
+                }
+
+                currentX += charWidth;
+            }
+        }
+
+        // Spawn blood drops randomly from letters
+        function spawnBloodDrops() {
+            if (Math.random() < 0.15 && letterPositions.length > 0) {
+                const pos = letterPositions[Math.floor(Math.random() * letterPositions.length)];
+                bloodDrops.push(new BloodDrop(pos.x, pos.y));
+            }
+        }
+
+        function drawText() {
+            const x = WIDTH / 2;
+            const y = HEIGHT / 2 - 20;
+
+            ctx.save();
+            ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+
+            // Blood text effect
+            // Shadow/glow layers
+            for (let i = 0; i < 3; i++) {
+                ctx.shadowColor = '#8B0000';
+                ctx.shadowBlur = 30 + i * 10;
+                ctx.fillStyle = '#8B0000';
+                ctx.fillText(TEXT, x, y);
+            }
+
+            // Main blood red text
+            ctx.shadowColor = '#FF0000';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#B22222';
+            ctx.fillText(TEXT, x, y);
+
+            // Highlight layer
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#CD5C5C';
+            ctx.globalAlpha = 0.6;
+            ctx.fillText(TEXT, x, y - 2);
+
+            // Dark dripping edge at bottom of letters
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = '#660000';
+            ctx.fillText(TEXT, x, y + 3);
+
+            ctx.restore();
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Update and draw blood drops
+            spawnBloodDrops();
+
+            for (let i = bloodDrops.length - 1; i >= 0; i--) {
+                if (bloodDrops[i].update()) {
+                    bloodDrops[i].draw();
+                } else {
+                    bloodDrops.splice(i, 1);
+                }
+            }
+
+            // Draw text on top
+            drawText();
+
+            requestAnimationFrame(render);
+        }
+
+        // Initialize
+        document.fonts.load(`${FONT_SIZE}px Creepster`).then(() => {
+            calculateLetterPositions();
+            requestAnimationFrame(render);
+        }).catch(() => {
+            calculateLetterPositions();
+            requestAnimationFrame(render);
+        });
+
+    </script>
+</body>
+</html>

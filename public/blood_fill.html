@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Fill Effect - Creepster Font</title>
+    <style>
+        @font-face {
+            font-family: 'Creepster';
+            src: url('./fonts/Creepster-Regular.ttf') format('truetype');
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a0a;
+            font-family: 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+
+        canvas {
+            box-shadow: 0 0 50px rgba(139, 0, 0, 0.6);
+            background-color: rgba(0,0,0,0.8);
+            border: 4px solid #330000;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            padding: 20px 40px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        button {
+            background: #8B0000;
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Creepster', cursive;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(139, 0, 0, 0.6);
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #B22222;
+            box-shadow: 0 0 25px rgba(139, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        button:disabled {
+            background: #333;
+            color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .timer-display {
+            font-family: 'Creepster', cursive;
+            font-size: 1.5rem;
+            color: #8B0000;
+            text-shadow: 0 0 10px rgba(139, 0, 0, 0.8);
+            min-width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+
+    <div class="controls">
+        <button id="playBtn">PLAY</button>
+        <div class="timer-display" id="timer">0.00s</div>
+    </div>
+
+    <script>
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        const timerDisplay = document.getElementById('timer');
+        const playBtn = document.getElementById('playBtn');
+
+        // Configuration
+        const WIDTH = 1400;
+        const HEIGHT = 300;
+        const FONT_SIZE = 90;
+        const FONT_FAMILY = 'Creepster, cursive';
+        const SPACING = 25;
+
+        // Word timing data (like captions)
+        const wordsData = [
+            {text: 'BEWARE', start: 0.5, end: 1.3},
+            {text: 'THE', start: 1.5, end: 1.9},
+            {text: 'CURSE', start: 2.1, end: 2.8},
+            {text: 'OF', start: 3.0, end: 3.3},
+            {text: 'THE', start: 3.5, end: 3.9},
+            {text: 'NIGHT', start: 4.1, end: 5.0}
+        ];
+
+        // Word state
+        let words = wordsData.map(w => ({
+            ...w,
+            fillLevel: 0, // 0 to 1, represents how much blood has filled
+            width: 0,
+            x: 0,
+            y: 0
+        }));
+
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+
+        // Playback state
+        let isPlaying = false;
+        let startTimestamp = 0;
+        let playbackTime = 0;
+        const FILL_SPEED = 4.0; // How fast the blood fills (units per second)
+
+        playBtn.addEventListener('click', () => {
+            if(isPlaying) return;
+            words.forEach(w => w.fillLevel = 0);
+            isPlaying = true;
+            startTimestamp = performance.now();
+            playBtn.disabled = true;
+            playBtn.innerText = "PLAYING...";
+        });
+
+        function updatePhysics(timestamp) {
+            if (isPlaying) {
+                playbackTime = (timestamp - startTimestamp) / 1000;
+                timerDisplay.innerText = playbackTime.toFixed(2) + "s";
+
+                const lastWordEnd = words[words.length - 1].end;
+                if (playbackTime > lastWordEnd + 1.5) {
+                    isPlaying = false;
+                    playBtn.disabled = false;
+                    playBtn.innerText = "REPLAY";
+                    playbackTime = 0;
+                }
+            }
+
+            // Update fill levels
+            words.forEach(word => {
+                const isActive = (playbackTime >= word.start && playbackTime <= word.end);
+
+                if (isActive) {
+                    // Fill with blood
+                    if (word.fillLevel < 1.0) {
+                        const deltaTime = 1/60; // Assuming 60fps
+                        word.fillLevel += FILL_SPEED * deltaTime;
+                        if (word.fillLevel > 1.0) word.fillLevel = 1.0;
+                    }
+                } else if (playbackTime > word.end) {
+                    // Keep it filled after active period
+                    word.fillLevel = 1.0;
+                }
+            });
+        }
+
+        function drawWord(word) {
+            const x = word.x;
+            const y = word.y;
+            const fillLevel = word.fillLevel;
+
+            ctx.save();
+            ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+
+            // Measure text height for fill effect
+            const metrics = ctx.measureText(word.text);
+            const textHeight = FONT_SIZE;
+            const fillHeight = textHeight * fillLevel;
+
+            // 1. Draw base white text (unfilled portion) - fade inversely to red glow
+            if (fillLevel < 1.0) {
+                // White fades as red grows - inverse relationship
+                const whiteFade = 1.0 - fillLevel;
+
+                ctx.save();
+                ctx.globalAlpha = whiteFade;
+
+                // White glow
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(word.text, x, y);
+
+                // Brighter white overlay
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(word.text, x, y);
+
+                ctx.restore();
+            }
+
+            // 2. Draw blood-filled portion with clipping (TOP TO BOTTOM)
+            if (fillLevel > 0) {
+                ctx.save();
+
+                // Create clipping region with wavy bottom edge
+                const clipY = y - (textHeight / 2);
+                const surfaceY = y - (textHeight / 2) + fillHeight;
+
+                // Calculate wave for clipping path - smoothly fade out as it fills
+                const maxWaveAmplitude = 8;
+                const waveAmplitude = fillLevel < 0.85
+                    ? maxWaveAmplitude
+                    : maxWaveAmplitude * (1 - ((fillLevel - 0.85) / 0.15)); // Fade out in last 15%
+                const waveFrequency = 0.15;
+                const timeOffset = playbackTime * 3;
+
+                // Build clipping path with wavy bottom
+                ctx.beginPath();
+                ctx.moveTo(x - 20, clipY); // Top left
+                ctx.lineTo(x + word.width + 20, clipY); // Top right
+                ctx.lineTo(x + word.width + 20, surfaceY); // Right side down to wave start
+
+                // Draw the wavy bottom edge (right to left)
+                if (fillLevel < 1.0) {
+                    for (let i = word.width + 40; i >= 0; i -= 15) {
+                        const currentX = x - 20 + i;
+                        const prevX = x - 20 + i - 15;
+
+                        // Multiple wave components for complex ripple
+                        const wave1 = Math.sin((i * waveFrequency) + timeOffset) * waveAmplitude;
+                        const wave2 = Math.sin((i * waveFrequency * 2.3) + timeOffset * 1.5) * (waveAmplitude * 0.4);
+                        const wave3 = Math.sin((i * waveFrequency * 0.7) - timeOffset * 0.8) * (waveAmplitude * 0.3);
+                        const currentWave = wave1 + wave2 + wave3;
+
+                        const prevWave1 = Math.sin(((i - 15) * waveFrequency) + timeOffset) * waveAmplitude;
+                        const prevWave2 = Math.sin(((i - 15) * waveFrequency * 2.3) + timeOffset * 1.5) * (waveAmplitude * 0.4);
+                        const prevWave3 = Math.sin(((i - 15) * waveFrequency * 0.7) - timeOffset * 0.8) * (waveAmplitude * 0.3);
+                        const prevWave = prevWave1 + prevWave2 + prevWave3;
+
+                        // Bezier curve for smooth transition
+                        const cp1x = currentX - 5;
+                        const cp1y = surfaceY + currentWave;
+                        const cp2x = prevX + 5;
+                        const cp2y = surfaceY + prevWave;
+
+                        if (i === word.width + 40) {
+                            ctx.lineTo(currentX, surfaceY + currentWave);
+                        }
+                        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, prevX, surfaceY + prevWave);
+                    }
+                } else {
+                    ctx.lineTo(x - 20, surfaceY); // Straight line when fully filled
+                }
+
+                ctx.lineTo(x - 20, clipY); // Left side back to top
+                ctx.closePath();
+                ctx.clip();
+
+                // Power-on glow effect - intensity increases with fill level
+                const glowIntensity = fillLevel;
+
+                // Draw blood layers with powered-on glow
+                // Outer glow
+                ctx.shadowColor = '#8B0000';
+                ctx.shadowBlur = 30 * glowIntensity;
+                ctx.globalAlpha = glowIntensity;
+                ctx.fillStyle = '#8B0000';
+                ctx.fillText(word.text, x, y);
+
+                // Main blood red
+                ctx.shadowColor = '#FF0000';
+                ctx.shadowBlur = 15 * glowIntensity;
+                ctx.globalAlpha = glowIntensity;
+                ctx.fillStyle = '#B22222';
+                ctx.fillText(word.text, x, y);
+
+                // Highlight (wet blood shine)
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#CD5C5C';
+                ctx.globalAlpha = 0.7 * glowIntensity;
+                ctx.fillText(word.text, x, y - 2);
+
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        function render(timestamp) {
+            updatePhysics(timestamp);
+
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Calculate layout
+            ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            let totalWidth = 0;
+            words.forEach(w => {
+                w.width = ctx.measureText(w.text).width;
+                totalWidth += w.width;
+            });
+            totalWidth += (words.length - 1) * SPACING;
+
+            let currentX = (WIDTH - totalWidth) / 2;
+            const Y = HEIGHT / 2;
+
+            words.forEach(word => {
+                word.x = currentX;
+                word.y = Y;
+                drawWord(word);
+                currentX += word.width + SPACING;
+            });
+
+            requestAnimationFrame(render);
+        }
+
+        // Initialize
+        document.fonts.load(`${FONT_SIZE}px Creepster`).then(() => {
+            requestAnimationFrame(render);
+        }).catch(() => {
+            requestAnimationFrame(render);
+        });
+
+    </script>
+</body>
+</html>

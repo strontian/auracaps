@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HDR Neon Captions - Mipmap Bloom</title>
+  <style>
+    @font-face {
+      font-family: 'Beon';
+      src: url('/fonts/Beon-Regular.ttf') format('truetype');
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      color: white;
+    }
+
+    h1 { margin-bottom: 1rem; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+
+    #video-container {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 16/9;
+      background: black;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      margin-bottom: 1rem;
+    }
+
+    #video { width: 100%; height: 100%; object-fit: cover; }
+    
+    #glCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    #controls {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem;
+      border-radius: 12px;
+      max-width: 900px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .control-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-size: 0.9rem; font-weight: 600; color: #ccc; }
+    input[type="range"] { width: 100%; accent-color: #00f7ff; }
+    input[type="color"] { width: 100%; height: 40px; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h1>HDR Neon Captions (WebGL Bloom)</h1>
+
+  <div id="video-container">
+    <video id="video" loop autoplay muted playsinline>
+      <source src="emily.mov" type="video/mp4">
+    </video>
+    <canvas id="glCanvas"></canvas>
+  </div>
+
+  <div id="controls">
+    <div class="control-group">
+      <label>Tube Intensity (Core)</label>
+      <input type="range" id="tubeIntensity" min="0" max="3" step="0.1" value="1.5">
+    </div>
+    <div class="control-group">
+      <label>Halo Intensity (Glow)</label>
+      <input type="range" id="haloIntensity" min="0" max="3" step="0.1" value="1.2">
+    </div>
+    <div class="control-group">
+      <label>Tube Color</label>
+      <input type="color" id="tubeColor" value="#00f7ff">
+    </div>
+    <div class="control-group">
+      <label>Halo Color</label>
+      <input type="color" id="haloColor" value="#0051ff">
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // WebGL2 Mipmap Bloom Renderer
+    // ============================================================================
+
+    const video = document.getElementById('video');
+    const glCanvas = document.getElementById('glCanvas');
+    const gl = glCanvas.getContext('webgl2', {
+      alpha: true,
+      premultipliedAlpha: false
+    });
+
+    if (!gl) throw new Error('WebGL 2 required');
+
+    // --- State ---
+    let params = {
+      fontSize: 60,
+      tubeColor: '#00f7ff',
+      haloColor: '#0051ff',
+      tubeIntensity: 1.5,
+      haloIntensity: 1.2,
+      useBT2020: true
+    };
+
+    // --- Caption Data ---
+    const subtitles = [
+      { startTime: 0, endTime: 3, text: "True WebGL Bloom" },
+      { startTime: 3, endTime: 6, text: "Using Texture Mipmaps" },
+      { startTime: 6, endTime: 9, text: "For Additive Glow" }
+    ];
+
+    // Simple word splitter for demo animation
+    function getWordAlpha(text, time, start, end) {
+        // Simplified timing logic for the demo
+        if (time < start || time > end) return 0;
+        
+        // Fade in/out logic
+        const duration = end - start;
+        const fadeIn = 0.5;
+        const fadeOut = 0.5;
+        
+        let alpha = 1.0;
+        if (time - start < fadeIn) alpha = (time - start) / fadeIn;
+        if (end - time < fadeOut) alpha = (end - time) / fadeOut;
+        
+        return Math.max(0, Math.min(1, alpha));
+    }
+
+    // ============================================================================
+    // 1. UPDATED SHADERS (The Magic)
+    // ============================================================================
+
+    const vsSource = `#version 300 es
+      in vec2 a_pos;
+      in vec2 a_uv;
+      out vec2 v_uv;
+      void main() {
+        gl_Position = vec4(a_pos, 0.0, 1.0);
+        v_uv = a_uv; // Flip Y if needed
+      }
+    `;
+
+    const fsSource = `#version 300 es
+      precision highp float;
+
+      in vec2 v_uv;
+      out vec4 fragColor;
+
+      uniform sampler2D u_textTexture;
+      uniform vec3 u_tubeColor;
+      uniform vec3 u_haloColor;
+      uniform float u_tubeIntensity;
+      uniform float u_haloIntensity;
+      
+      // BT.2020 Color Space Matrix (Linear RGB -> Linear BT.2020)
+      const mat3 sRGB_2_BT2020 = mat3(
+        0.6274, 0.3293, 0.0433,
+        0.0691, 0.9195, 0.0114,
+        0.0164, 0.0880, 0.8956
+      );
+
+      // Helper: sRGB to Linear (standard gamma decoding)
+      vec3 srgbToLinear(vec3 srgb) {
+        return mix(
+          srgb / 12.92,
+          pow((srgb + 0.055) / 1.055, vec3(2.4)),
+          step(0.04045, srgb)
+        );
+      }
+
+      void main() {
+        // --- MIPMAP BLOOM TECHNIQUE ---
+        
+        // Level 0: Sharp Text (The "Filament")
+        float alphaCore = texture(u_textTexture, v_uv).a;
+        
+        // Level 3: Soft Blur (The "Tube" / Inner Glow)
+        // bias of 2.5 samples a lower mipmap level
+        float alphaGlow = texture(u_textTexture, v_uv, 2.5).a;
+        
+        // Level 5: Wide Blur (The "Atmosphere" / Outer Halo)
+        float alphaHalo = texture(u_textTexture, v_uv, 5.0).a;
+
+        // --- COMPOSITING ---
+
+        // 1. Convert inputs to linear space
+        vec3 tubeLinear = srgbToLinear(u_tubeColor);
+        vec3 haloLinear = srgbToLinear(u_haloColor);
+
+        // 2. Additive Color Stacking
+        // We accumulate light. Note we multiply by alpha to mask empty areas.
+        
+        // The "Wire" (dark physical tube when off, helps definition)
+        vec3 colorWire = vec3(0.05) * smoothstep(0.0, 0.5, alphaCore); 
+
+        // The "Halo" (Wide atmospheric light)
+        vec3 colorHalo = haloLinear * alphaHalo * u_haloIntensity;
+
+        // The "Glow" (The hot colored gas)
+        vec3 colorGlow = tubeLinear * alphaGlow * u_tubeIntensity;
+
+        // The "Core" (White hot center - only appears when alpha is high)
+        // We boost it slightly above 1.0 for HDR punch
+        vec3 colorCore = vec3(1.2) * smoothstep(0.6, 1.0, alphaCore);
+
+        // Sum them up (Additive/Linear Dodge)
+        vec3 finalRGB = colorWire + colorHalo + colorGlow + colorCore;
+
+        // 3. Color Space Conversion
+        finalRGB = sRGB_2_BT2020 * finalRGB;
+
+        // 4. Alpha Calculation
+        // For standard composition on top of video, we need an alpha channel.
+        // We take the max of all blurs so the wide halo isn't cut off.
+        float finalAlpha = max(alphaCore, max(alphaGlow, alphaHalo));
+        
+        // Enhance transparency falloff for smoother blending
+        finalAlpha = pow(finalAlpha, 0.8); 
+
+        fragColor = vec4(finalRGB, finalAlpha);
+      }
+    `;
+
+    // ============================================================================
+    // WebGL Boilerplate
+    // ============================================================================
+
+    function createShader(type, source) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s));
+        return null;
+      }
+      return s;
+    }
+
+    const program = gl.createProgram();
+    gl.attachShader(program, createShader(gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(program);
+    gl.useProgram(program);
+
+    // Quad Setup
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    
+    const locPos = gl.getAttribLocation(program, 'a_pos');
+    gl.enableVertexAttribArray(locPos);
+    gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
+
+    // UVs (flipped Y for Canvas texture)
+    const uvBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1, 1,1, 0,0, 1,0]), gl.STATIC_DRAW);
+    
+    const locUV = gl.getAttribLocation(program, 'a_uv');
+    gl.enableVertexAttribArray(locUV);
+    gl.vertexAttribPointer(locUV, 2, gl.FLOAT, false, 0, 0);
+
+    // ============================================================================
+    // Texture System (The Key to the Bloom)
+    // ============================================================================
+
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    
+    // IMPORTANT: LINEAR_MIPMAP_LINEAR enables the smooth blur effect
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // 2D Canvas for Text Generation
+    const textCanvas = document.createElement('canvas');
+    const textCtx = textCanvas.getContext('2d');
+
+    function resize() {
+      // Set canvas to match video
+      const w = video.clientWidth || 1920;
+      const h = video.clientHeight || 1080;
+      glCanvas.width = w;
+      glCanvas.height = h;
+      
+      // Text canvas must be Power-of-Two or closely matched for best mipmap results
+      // But WebGL2 supports NPOT mipmaps reasonably well.
+      textCanvas.width = w;
+      textCanvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ============================================================================
+    // Rendering Loop
+    // ============================================================================
+
+    function hexToRgb(hex) {
+      const bigint = parseInt(hex.substring(1), 16);
+      return [(bigint >> 16 & 255)/255, (bigint >> 8 & 255)/255, (bigint & 255)/255];
+    }
+
+    function render() {
+      const time = video.currentTime;
+      const activeSub = subtitles.find(s => time >= s.startTime && time < s.endTime);
+      
+      // 1. Draw Text to 2D Canvas
+      textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+      
+      if (activeSub) {
+        textCtx.font = `${params.fontSize}px Beon, sans-serif`;
+        textCtx.textAlign = 'center';
+        textCtx.textBaseline = 'middle';
+        
+        // Calculate Alpha for fade in/out
+        const alpha = getWordAlpha(activeSub.text, time, activeSub.startTime, activeSub.endTime);
+        
+        // Draw SOLID WHITE text. The color happens in the shader.
+        textCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        textCtx.fillText(activeSub.text, textCanvas.width / 2, textCanvas.height * 0.85);
+      }
+
+      // 2. Update Texture & GENERATE MIPMAPS
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textCanvas);
+      
+      // CRITICAL: This command creates the blurred layers we sample in the shader
+      gl.generateMipmap(gl.TEXTURE_2D);
+
+      // 3. Draw WebGL Quad
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      // Enable standard pre-multiplied alpha blending for composition
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+      // Uniforms
+      const tubeRgb = hexToRgb(params.tubeColor);
+      const haloRgb = hexToRgb(params.haloColor);
+
+      gl.uniform1i(gl.getUniformLocation(program, 'u_textTexture'), 0);
+      gl.uniform3fv(gl.getUniformLocation(program, 'u_tubeColor'), tubeRgb);
+      gl.uniform3fv(gl.getUniformLocation(program, 'u_haloColor'), haloRgb);
+      gl.uniform1f(gl.getUniformLocation(program, 'u_tubeIntensity'), params.tubeIntensity);
+      gl.uniform1f(gl.getUniformLocation(program, 'u_haloIntensity'), params.haloIntensity);
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      
+      requestAnimationFrame(render);
+    }
+
+    // Controls Logic
+    document.getElementById('tubeIntensity').oninput = e => params.tubeIntensity = parseFloat(e.target.value);
+    document.getElementById('haloIntensity').oninput = e => params.haloIntensity = parseFloat(e.target.value);
+    document.getElementById('tubeColor').oninput = e => params.tubeColor = e.target.value;
+    document.getElementById('haloColor').oninput = e => params.haloColor = e.target.value;
+
+    // Start
+    video.onloadedmetadata = () => { resize(); render(); };
+    if(video.readyState >= 2) { resize(); render(); }
+  </script>
+</body>
+</html>

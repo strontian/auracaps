@@ -402,6 +402,7 @@ export function renderLEDEffect(ctx, opts) {
   
   ctx.globalAlpha = 1.0;
 }
+
 export function renderNeonEffect(ctx, opts) {
   const {
     text,
