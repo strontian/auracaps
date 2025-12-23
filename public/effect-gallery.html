@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Effect Gallery - Aura Captions</title>
+
+  <style>
+    @font-face {
+      font-family: 'Modak';
+      src: url('/fonts/Modak-Regular.ttf') format('truetype');
+    }
+
+    @font-face {
+      font-family: 'Tinos';
+      src: url('/fonts/Tinos-Regular.ttf') format('truetype');
+    }
+
+    @font-face {
+      font-family: 'Beon';
+      src: url('/fonts/Beon-Regular.ttf') format('truetype');
+    }
+
+    @font-face {
+      font-family: 'DynaPuff';
+      src: url('fonts/DynaPuff-SemiBold.ttf') format('truetype');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-right: 0.5rem;
+    }
+
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: white;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-link {
+      color: white;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: background 0.3s;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: white;
+      text-align: center;
+      margin-bottom: 1rem;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .page-description {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.1rem;
+      margin-bottom: 3rem;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .effect-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .effect-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+    }
+
+    .effect-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 300px;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .effect-canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .effect-info {
+      padding: 1.5rem;
+    }
+
+    .effect-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    .effect-description {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: #60a5fa;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .gallery-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .page-title {
+        font-size: 2rem;
+      }
+
+      .effect-canvas-wrapper {
+        height: 250px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo-section">
+        <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMTYgMTZIMzJWMjBIMTZWMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMjRIMzJWMjhIMTZWMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTYgMzJIMjhWMzZIMTZWMzJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Aura Captions Logo">
+        <h2 class="logo-text">Aura Captions</h2>
+      </div>
+      <nav class="nav-links">
+        <a href="/upload.html" class="nav-link">Upload</a>
+        <a href="/my-videos.html" class="nav-link">My Videos</a>
+      </nav>
+    </header>
+
+    <main class="main-content">
+      <h1 class="page-title">Effect Gallery</h1>
+      <p class="page-description">
+        Explore our collection of stunning caption effects. Each style brings a unique visual flair to your videos.
+      </p>
+
+      <div class="gallery-grid">
+        <!-- Cotton Candy Effect -->
+        <div class="effect-card">
+          <div class="effect-canvas-wrapper">
+            <canvas id="canvas-holographic" class="effect-canvas"></canvas>
+          </div>
+          <div class="effect-info">
+            <h3 class="effect-title">Cotton Candy</h3>
+            <p class="effect-description">
+              A dreamy holographic effect with animated pastel colors that flow and shimmer across your text. Features a smooth scrolling gradient that creates an ethereal, candy-like appearance.
+            </p>
+          </div>
+        </div>
+
+        <!-- Rainbow Effect -->
+        <div class="effect-card">
+          <div class="effect-canvas-wrapper">
+            <canvas id="canvas-rainbow" class="effect-canvas"></canvas>
+          </div>
+          <div class="effect-info">
+            <h3 class="effect-title">Rainbow</h3>
+            <p class="effect-description">
+              Vibrant animated particles in full spectrum colors cascade through your text. Creates a dynamic, energetic look with constantly moving rainbow patterns and a crisp white outline.
+            </p>
+          </div>
+        </div>
+
+        <!-- LED Effect -->
+        <div class="effect-card">
+          <div class="effect-canvas-wrapper">
+            <canvas id="canvas-led" class="effect-canvas"></canvas>
+          </div>
+          <div class="effect-info">
+            <h3 class="effect-title">LED</h3>
+            <p class="effect-description">
+              A retro LED matrix display with individually pulsing colored dots. Each pixel cycles through the color spectrum while varying in brightness, creating a mesmerizing digital billboard effect.
+            </p>
+          </div>
+        </div>
+
+        <!-- Neon Effect -->
+        <div class="effect-card">
+          <div class="effect-canvas-wrapper">
+            <canvas id="canvas-neon" class="effect-canvas"></canvas>
+          </div>
+          <div class="effect-info">
+            <h3 class="effect-title">Neon</h3>
+            <p class="effect-description">
+              Electric neon tube lighting with realistic glow effects. Words illuminate with smooth fade-in animations, featuring vibrant cyan tubes with deep blue halos that simulate authentic neon signage.
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span>support: </span>
+      <a href="mailto:hello@auracaptions.com?subject=Aura Support">hello@auracaptions.com</a>
+    </footer>
+  </div>
+
+  <script type="module">
+    import {
+      renderHolographicEffect,
+      detectLEDDots,
+      renderLEDEffect,
+      renderRainbowEffect,
+      renderNeonEffect
+    } from './effects.mjs';
+
+    // Canvas setup
+    const canvases = {
+      holographic: document.getElementById('canvas-holographic'),
+      rainbow: document.getElementById('canvas-rainbow'),
+      led: document.getElementById('canvas-led'),
+      neon: document.getElementById('canvas-neon')
+    };
+
+    const contexts = {
+      holographic: canvases.holographic.getContext('2d'),
+      rainbow: canvases.rainbow.getContext('2d'),
+      led: canvases.led.getContext('2d'),
+      neon: canvases.neon.getContext('2d')
+    };
+
+    // Initialize canvas sizes
+    const canvasWidth = 800;
+    const canvasHeight = 300;
+    Object.values(canvases).forEach(canvas => {
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+    });
+
+    // Demo text for each effect
+    const effectTexts = {
+      holographic: 'COTTON CANDY',
+      rainbow: 'RAINBOW FALLS',
+      led: 'RETRO LED',
+      neon: 'NEON LIGHTS'
+    };
+
+    const fontSize = 64;
+    const textHeightPercent = 50;
+
+    // Auxiliary canvas for rainbow and LED effects
+    const auxCanvas = document.createElement('canvas');
+    auxCanvas.width = canvasWidth;
+    auxCanvas.height = canvasHeight;
+    const auxCtx = auxCanvas.getContext('2d');
+
+    // State objects
+    let holoImage = null;
+    let rainbowState = {};
+    let ledDots = null;
+    let neonWords = null;
+    let startTime = Date.now();
+
+    // Initialize neon words with demo timing
+    function initNeonWords() {
+      const words = effectTexts.neon.split(' ');
+      const wordDuration = 0.5;
+      const gapDuration = 0.1;
+      let currentTime = 0;
+
+      neonWords = words.map(word => {
+        const wordData = {
+          word: word,
+          punctuated_word: word,
+          start: currentTime,
+          end: currentTime + wordDuration
+        };
+        currentTime += wordDuration + gapDuration;
+        return wordData;
+      });
+    }
+
+    // Load holographic image
+    async function loadResources() {
+      holoImage = new Image();
+      holoImage.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        holoImage.onload = resolve;
+        holoImage.onerror = reject;
+        holoImage.src = '/images/holo.jpg';
+      });
+
+      // Pre-detect LED dots
+      ledDots = detectLEDDots({
+        text: effectTexts.led,
+        fontSize: fontSize,
+        textHeightPercent: textHeightPercent,
+        squareSize: 8,
+        auxCtx: auxCtx
+      });
+
+      initNeonWords();
+    }
+
+    // Render functions for each effect
+    function renderHolo() {
+      if (!holoImage) return;
+
+      const timestamp = (Date.now() - startTime) / 1000;
+      contexts.holographic.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      renderHolographicEffect(contexts.holographic, {
+        text: effectTexts.holographic,
+        styleImage: holoImage,
+        timestamp: timestamp,
+        fontSize: fontSize,
+        textHeightPercent: textHeightPercent
+      });
+    }
+
+    function renderRainbow() {
+      contexts.rainbow.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      renderRainbowEffect(contexts.rainbow, {
+        text: effectTexts.rainbow,
+        fontSize: fontSize,
+        textHeightPercent: textHeightPercent,
+        state: rainbowState,
+        auxCanvas: auxCanvas
+      });
+    }
+
+    function renderLED() {
+      if (!ledDots) return;
+
+      contexts.led.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      // Draw black background
+      contexts.led.fillStyle = '#000';
+      contexts.led.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      renderLEDEffect(contexts.led, {
+        dots: ledDots,
+        fontSize: fontSize,
+        squareSize: 8
+      });
+    }
+
+    function renderNeon() {
+      if (!neonWords) return;
+
+      const timestamp = ((Date.now() - startTime) / 1000) % 3; // Loop every 3 seconds
+      contexts.neon.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      // Create a fake subtitle block for the neon effect
+      const subtitle = {
+        startTime: 0,
+        endTime: 3,
+        text: effectTexts.neon
+      };
+
+      renderNeonEffect(contexts.neon, {
+        text: effectTexts.neon,
+        allWords: neonWords,
+        subtitle: subtitle,
+        timestamp: timestamp,
+        fontSize: fontSize,
+        textHeightPercent: textHeightPercent,
+        tubeColor: '#00f7ff',
+        haloColor: '#0051ff'
+      });
+    }
+
+    // Animation loop
+    function animate() {
+      renderHolo();
+      renderRainbow();
+      renderLED();
+      renderNeon();
+
+      requestAnimationFrame(animate);
+    }
+
+    // Initialize
+    loadResources()
+      .then(() => {
+        animate();
+      })
+      .catch(error => {
+        console.error('Error loading resources:', error);
+      });
+  </script>
+</body>
+</html>

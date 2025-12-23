@@ -1,0 +1,10 @@
+Aura is a website for burning creative, interesting captions into video. When adding a new effect our process is like this:
+
+1. Create a demo of the effect. This is a standalone html page in the public/experiments folder. Any required data or constants are hard coded so that the demo is not reliant on any server resources. You can see an example demo at public/experiments/neon.html. The orginal demo will remain in the experiments folder for future reference.
+
+2. The next step is to add the code for the effect into the effects library so it can be used by other pages. Look at the effects in public/effects.mjs. Now extract out the effect in the demo so it's a function like those. Note that while the demo may have staticly coded words, the effects must accept a transcript, font size, and so on.
+
+3. Update holo.html to show the new effect as an option
+
+4. Update local_captions.mjs to support the new effect
+
