@@ -112,7 +112,7 @@ export function renderRainbowEffect(ctx, opts) {
 
     const RAINBOW_CONFIG = {
       speed: 2,
-      count: 30000, 
+      count: 70000, 
       zoom: 3,
       size: 20,
       colors: [0, 30, 60, 120, 180, 240, 270, 300]

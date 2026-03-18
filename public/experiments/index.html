@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Experiments — Dev Index</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: ui-monospace, 'SF Mono', monospace;
+      background: #111;
+      color: #ccc;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    #sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: #1a1a1a;
+      border-right: 1px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #555;
+    }
+
+    #sidebar-header span {
+      color: #888;
+    }
+
+    #nav {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    #nav a {
+      display: block;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #888;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: all 0.1s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #nav a:hover {
+      background: #222;
+      color: #ddd;
+    }
+
+    #nav a.active {
+      color: #fff;
+      border-left-color: #4a9eff;
+      background: #1e2a38;
+    }
+
+    /* Main */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #toolbar {
+      height: 38px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 12px;
+      font-size: 12px;
+      color: #555;
+      flex-shrink: 0;
+    }
+
+    #toolbar #current-name {
+      color: #aaa;
+      flex: 1;
+    }
+
+    #toolbar a {
+      color: #4a9eff;
+      text-decoration: none;
+      font-size: 11px;
+    }
+
+    #toolbar a:hover { text-decoration: underline; }
+
+    #preview {
+      flex: 1;
+      border: none;
+      background: #000;
+    }
+
+    #empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-header">experiments <span id="count"></span></div>
+  <nav id="nav"></nav>
+</div>
+
+<div id="main">
+  <div id="toolbar">
+    <span id="current-name">select a demo</span>
+    <a id="open-link" href="#" target="_blank" style="display:none">↗ open</a>
+  </div>
+  <div id="empty">← pick a demo</div>
+  <iframe id="preview" style="display:none"></iframe>
+</div>
+
+<script>
+  const demos = [
+    { name: '3d',             file: '3d.html' },
+    { name: 'adapt neon',     file: 'adapt_neon.html' },
+    { name: 'anim',           file: 'anim.html' },
+    { name: 'bevel',          file: 'bevel.html' },
+    { name: 'blend',          file: 'blend.html' },
+    { name: 'blood drip',     file: 'blood_drip.html' },
+    { name: 'blood fill',     file: 'blood_fill.html' },
+    { name: 'epic',           file: 'epic.html' },
+    { name: 'gold',           file: 'gold.html' },
+    { name: 'grad',           file: 'grad.html' },
+    { name: 'hdemo',          file: 'hdemo.html' },
+    { name: 'lottie',         file: 'lottie.html' },
+    { name: 'neon',           file: 'neon.html' },
+    { name: 'neon hdr',       file: 'neon_hdr_demo.html' },
+    { name: 'neon hdr 2',     file: 'neon_hdr_demo2.html' },
+    { name: 'rb',             file: 'rb.html' },
+    { name: 'rc',             file: 'rc.html' },
+    { name: 'rc2',            file: 'rc2.html' },
+    { name: 'smash',          file: 'smash.html' },
+    { name: 'space',          file: 'space.html' },
+  ];
+
+  const nav = document.getElementById('nav');
+  const preview = document.getElementById('preview');
+  const empty = document.getElementById('empty');
+  const currentName = document.getElementById('current-name');
+  const openLink = document.getElementById('open-link');
+
+  document.getElementById('count').textContent = `(${demos.length})`;
+
+  demos.forEach(demo => {
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = demo.name;
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      nav.querySelectorAll('a').forEach(el => el.classList.remove('active'));
+      a.classList.add('active');
+      currentName.textContent = demo.file;
+      openLink.href = demo.file;
+      openLink.style.display = 'inline';
+      empty.style.display = 'none';
+      preview.style.display = 'block';
+      preview.src = demo.file;
+    });
+    nav.appendChild(a);
+  });
+
+  // keyboard nav
+  document.addEventListener('keydown', e => {
+    const active = nav.querySelector('a.active');
+    if (!active) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') nav.querySelector('a').click();
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      const next = active.nextElementSibling;
+      if (next) next.click();
+    } else if (e.key === 'ArrowUp') {
+      const prev = active.previousElementSibling;
+      if (prev) prev.click();
+    }
+  });
+</script>
+
+</body>
+</html>

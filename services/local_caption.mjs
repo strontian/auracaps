@@ -125,13 +125,14 @@ const filterComplex = `[0:v][1:v]overlay=0:0:format=auto${rotationFilter}`;
     '-colorspace', 'bt2020nc',   // Preserve color space
     '-color_primaries', 'bt2020',
     '-color_trc', 'arib-std-b67', // Preserve HLG transfer
+    '-tag:v', 'hvc1',            // QuickTime-compatible HEVC tag
     '-preset', 'slow',
     '-crf', '18',
     '-c:a', 'copy',
     outputPath
   ];
 
-      //'-c:v', 'libx264',
+    //'-c:v', 'libx264',
     //'-profile:v', 'high10',          
     //'-pix_fmt', 'yuv420p10le',       
     //'-color_primaries', 'bt2020',
