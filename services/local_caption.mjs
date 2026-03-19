@@ -82,7 +82,8 @@ export async function generateStyledCaptions({
   fps = 30,
   duration,
   rotation = 0,
-  words = null // Word-level timing data for neon effect
+  words = null, // Word-level timing data for neon effect
+  isHDR = false
 }) {
   const startTime = Date.now();
   console.log(`Starting video processing with style: ${captionStyle}...\n`);
@@ -102,30 +103,39 @@ export async function generateStyledCaptions({
   const auxCanvas = createCanvas(width, height);
   const auxCtx = auxCanvas.getContext('2d', { alpha: false }); 
 
-let rotationFilter = ""; 
-if (rotation === -90) rotationFilter = ",transpose=1";  // -90° = counterclockwise
-else if (rotation === 90) rotationFilter = ",transpose=2";   // 90° = clockwise
-else rotationFilter = ""; // No rotation if 0
+let rotationFilter = '';
+if (rotation === -90) rotationFilter = ',transpose=1';
+else if (rotation === 90) rotationFilter = ',transpose=2';
 
-const filterComplex = `[0:v][1:v]overlay=0:0:format=auto${rotationFilter}`;
-  //const filterComplex = `[1:v]zscale=rin=full:min=709:pin=709:tin=709:r=limited:m=bt2020nc:p=bt2020:t=arib-std-b67[overlay];[0:v][overlay]overlay=0:0:format=auto${rotationFilter}`;
+const tonemapFilter = `[0:v]zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p[sdr];[sdr][1:v]overlay=0:0:format=auto${rotationFilter}`;
+const straightFilter = `[0:v][1:v]overlay=0:0:format=auto${rotationFilter}`;
+const filterComplex = isHDR ? tonemapFilter : straightFilter;
 
-  console.log('Starting FFmpeg process...');
+const hdrEncodeArgs = [
+  '-c:v', 'libx265',
+  '-pix_fmt', 'yuv420p10le',
+  '-colorspace', 'bt2020nc',
+  '-color_primaries', 'bt2020',
+  '-color_trc', 'arib-std-b67',
+  '-tag:v', 'hvc1',
+];
+const sdrEncodeArgs = [
+  '-c:v', 'libx264',
+  '-pix_fmt', 'yuv420p',
+  '-tag:v', 'avc1',
+];
+
+  console.log(`Starting FFmpeg process... (${isHDR ? 'HDR→SDR tonemap' : 'SDR passthrough'})`);
   const ffmpegArgs = [
     '-y',
     '-i', videoPath,
     '-f', 'rawvideo',
-    '-pix_fmt', 'bgra', 
+    '-pix_fmt', 'bgra',
     '-s', `${width}x${height}`,
     '-r', fps.toString(),
-    '-i', '-', // Read from stdin
+    '-i', '-',
     '-filter_complex', filterComplex,
-    '-c:v', 'libx265',           // Use HEVC like the original
-    '-pix_fmt', 'yuv420p10le',   // 10-bit 4:2:0 for HDR
-    '-colorspace', 'bt2020nc',   // Preserve color space
-    '-color_primaries', 'bt2020',
-    '-color_trc', 'arib-std-b67', // Preserve HLG transfer
-    '-tag:v', 'hvc1',            // QuickTime-compatible HEVC tag
+    ...(isHDR ? sdrEncodeArgs : hdrEncodeArgs),
     '-preset', 'slow',
     '-crf', '18',
     '-c:a', 'copy',

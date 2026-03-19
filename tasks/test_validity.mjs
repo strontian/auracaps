@@ -18,7 +18,7 @@ function probeVideo(p) {
     execFile(ffprobePath.path, [
       '-v', 'error',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height,duration:stream_tags=rotate',
+      '-show_entries', 'stream=width,height,duration,color_transfer:stream_tags=rotate',
       '-of', 'json',
       p
     ], (err, stdout) => {
@@ -27,7 +27,8 @@ function probeVideo(p) {
       const rotation = s.tags?.rotate ? parseInt(s.tags.rotate) : 0
       let { width, height } = s
       if (rotation === 90 || rotation === 270) [width, height] = [height, width]
-      resolve({ width, height, duration: parseFloat(s.duration), rotation })
+      const isHDR = ['arib-std-b67', 'smpte2084'].includes(s.color_transfer)
+      resolve({ width, height, duration: parseFloat(s.duration), rotation, isHDR })
     })
   })
 }
