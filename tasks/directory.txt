@@ -1,0 +1,44 @@
+tasks/ directory
+================
+
+add_effect.txt
+  Workflow doc: step-by-step process for adding a new caption effect to the app.
+
+directory.txt
+  This file.
+
+journal/
+  Dev notes from past sessions. Covers decisions, bugs found, and fixes made.
+
+render_frames/
+  Debug tool: renders one PNG per subtitle block to disk for visual inspection.
+  Uses IMG_4785 SRT/words from test_validity/.
+
+render_gold/
+  Renders the 3D gold caption effect onto emily.mov using Puppeteer + FFmpeg.
+  Output: render_gold/emily_gold.mp4
+
+resources/
+  Input source videos used by the task scripts.
+    emily.mov         — source clip for transcribe_emily and render_gold
+    IMG_4785.mov      — source clip for test_validity and render_frames
+    short.mov         — source clip for test_captions
+    original.mp4      — unknown origin
+    output.mp4        — unknown origin
+
+test_canvas/
+  Perf benchmark: measures canvas rendering speed for the neon effect.
+  No file outputs — prints timing stats to stdout.
+
+test_captions/
+  Runs generateStyledCaptions end-to-end on short.mov with a caption style.
+  Output: test_captions/test_output.mp4
+  Includes: test_results.md with benchmark notes from two runs.
+
+test_validity/
+  Full pipeline test on IMG_4785.mov: transcribes via Deepgram (cached),
+  applies neon captions, handles HDR-to-SDR conversion.
+  Output: IMG_4785.srt, IMG_4785_words.json, IMG_4785_sdr.mp4, IMG_4785_sdr_neon.mp4
+
+transcribe_emily/
+  One-off script to transcribe emily.mov via Deepgram and write emily.srt.

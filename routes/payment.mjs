@@ -1,7 +1,9 @@
 import express from 'express'
 import { completePurchase, checkout10, checkout60 } from '../services/stripe.mjs'
+import { requireAuth } from '../middleware/auth.mjs'
 
 const router = express.Router()
+router.use(requireAuth)
 
 router.get('/checkout_ten', async (req, res) => {
   console.log('create session!')

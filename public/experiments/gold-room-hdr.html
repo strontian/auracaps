@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Gold — HDR Environment</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; overflow: hidden; font-family: monospace; color: #fff; }
+    #controls {
+      position: absolute; top: 20px; right: 20px; width: 260px;
+      background: rgba(0,0,0,0.82); padding: 18px; border-radius: 8px;
+      border: 1px solid #333; z-index: 100; display: flex; flex-direction: column; gap: 12px;
+    }
+    .section { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #ffd700; border-bottom: 1px solid #333; padding-bottom: 4px; margin-top: 4px; }
+    .row { display: flex; flex-direction: column; gap: 3px; }
+    .row label { display: flex; justify-content: space-between; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+    .row label span { color: #ffd700; font-family: monospace; }
+    input[type=range] { width: 100%; accent-color: #ffd700; }
+    input[type=color] { width: 100%; height: 24px; border: none; background: none; cursor: pointer; border-radius: 3px; }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
+    input[type=checkbox] { accent-color: #ffd700; width: 14px; height: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <div class="section" style="margin-top:0">Material</div>
+  <div class="row">
+    <label>Metalness <span id="vMetalness">1.00</span></label>
+    <input type="range" id="metalness" min="0" max="1" step="0.01" value="1.0">
+  </div>
+  <div class="row">
+    <label>Face Roughness <span id="vRoughness">0.08</span></label>
+    <input type="range" id="roughness" min="0" max="0.6" step="0.01" value="0.08">
+  </div>
+  <div class="row">
+    <label>Env Intensity <span id="vEnvInt">1.20</span></label>
+    <input type="range" id="envInt" min="0" max="4" step="0.05" value="1.2">
+  </div>
+
+  <div class="section">Word Glow</div>
+  <div class="row">
+    <label>Emissive Strength <span id="vEmissive">1.45</span></label>
+    <input type="range" id="emissive" min="0" max="3" step="0.05" value="1.45">
+  </div>
+  <div class="row">
+    <label>Hold Time (s) <span id="vHoldTime">1.50</span></label>
+    <input type="range" id="holdTime" min="0.3" max="4" step="0.1" value="1.5">
+  </div>
+  <div class="row">
+    <label>Transition Speed <span id="vTransSpeed">4.00</span></label>
+    <input type="range" id="transSpeed" min="0.5" max="10" step="0.5" value="4.0">
+  </div>
+
+  <div class="section">Bloom</div>
+  <div class="row">
+    <label>Strength <span id="vBloomStr">0.30</span></label>
+    <input type="range" id="bloomStr" min="0" max="3" step="0.05" value="0.30">
+  </div>
+  <div class="row">
+    <label>Radius <span id="vBloomRad">0.60</span></label>
+    <input type="range" id="bloomRad" min="0" max="2" step="0.05" value="0.60">
+  </div>
+  <div class="row">
+    <label>Threshold <span id="vBloomThr">1.00</span></label>
+    <input type="range" id="bloomThr" min="0" max="1" step="0.01" value="1.0">
+  </div>
+  <div class="row">
+    <label>Exposure <span id="vExposure">0.50</span></label>
+    <input type="range" id="exposure" min="0.5" max="3" step="0.05" value="0.5">
+  </div>
+
+  <div class="section">Geometry</div>
+  <div class="row">
+    <label>Depth <span id="vDepth">2.50</span></label>
+    <input type="range" id="gDepth" min="0.5" max="8" step="0.25" value="2.5">
+  </div>
+  <div class="row">
+    <label>Bevel Size <span id="vBevelSize">0.50</span></label>
+    <input type="range" id="gBevelSize" min="0.1" max="4" step="0.1" value="0.5">
+  </div>
+  <div class="row">
+    <label>Bevel Thickness <span id="vBevelThick">2.00</span></label>
+    <input type="range" id="gBevelThick" min="0.1" max="5" step="0.1" value="2.0">
+  </div>
+  <div class="row">
+    <label>Bevel Segments <span id="vBevelSegs">24</span></label>
+    <input type="range" id="gBevelSegs" min="2" max="48" step="2" value="24">
+  </div>
+
+  <div class="section">Environment</div>
+  <div class="row">
+    <label style="margin-bottom:4px">HDR</label>
+    <select id="hdrSelect" style="width:100%;background:#111;color:#ffd700;border:1px solid #333;padding:4px;font-family:monospace;font-size:11px;border-radius:3px">
+      <option value="../textures/studio_small_08_1k.hdr">Studio</option>
+      <option value="../textures/venice_sunset_1k.hdr">Venice Sunset</option>
+      <option value="../textures/kloofendal_48d_partly_cloudy_puresky_1k.hdr" selected>Overcast Sky</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Bg Blur <span id="vBgBlur">0.40</span></label>
+    <input type="range" id="bgBlur" min="0" max="1" step="0.01" value="0.40">
+  </div>
+  <div class="row">
+    <label>Bg Intensity <span id="vBgInt">0.25</span></label>
+    <input type="range" id="bgInt" min="0" max="1" step="0.01" value="0.25">
+  </div>
+  <div class="row">
+    <label>Env Rotate Speed <span id="vEnvRot">0.08</span></label>
+    <input type="range" id="envRot" min="0" max="1" step="0.01" value="0.08">
+  </div>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
+import { TextGeometry }    from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader }      from 'three/addons/loaders/FontLoader.js';
+import { RGBELoader }      from 'three/addons/loaders/RGBELoader.js';
+import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
+
+// --- Renderer ---
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.5;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060606);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 4, 90);
+
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.enableDamping = true;
+orbitControls.dampingFactor = 0.05;
+
+// --- Environment ---
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+
+const rgbeLoader = new RGBELoader();
+function loadHDR(path) {
+  rgbeLoader.load(path, hdrTex => {
+    const envMap = pmrem.fromEquirectangular(hdrTex).texture;
+    hdrTex.dispose();
+    if (scene.environment) scene.environment.dispose();
+    scene.environment = envMap;
+    scene.background = envMap;
+    scene.backgroundBlurriness = 0.4;
+    scene.backgroundIntensity = 0.25;
+  });
+}
+loadHDR('../textures/kloofendal_48d_partly_cloudy_puresky_1k.hdr');
+
+// --- Post-processing ---
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.3, 0.6, 1.0);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+
+
+// --- Word data ---
+const WORDS = ['PURE', 'GOLD', 'EFFECT'];
+const WORD_SPACING = 6;
+
+const geoParams = { depth: 2.5, bevelSize: 0.5, bevelThickness: 2.0, bevelSegments: 24 };
+
+const geoCfg = font => ({
+  font,
+  size: 10,
+  depth: geoParams.depth,
+  curveSegments: 16,
+  bevelEnabled: true,
+  bevelThickness: geoParams.bevelThickness,
+  bevelSize: geoParams.bevelSize,
+  bevelOffset: 0,
+  bevelSegments: geoParams.bevelSegments,
+});
+
+// wordData: { mesh, faceMat, bevelMat, centerX }
+const wordData = [];
+let loadedFont = null;
+
+function buildWords(font) {
+  wordData.forEach(d => {
+    scene.remove(d.mesh);
+    d.mesh.geometry.dispose();
+    d.faceMat.dispose();
+    d.bevelMat.dispose();
+  });
+  wordData.length = 0;
+
+  // Measure each word first
+  const measured = WORDS.map(word => {
+    const geo = new TextGeometry(word, geoCfg(font));
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    return { word, geo, w: bb.max.x - bb.min.x, h: bb.max.y - bb.min.y };
+  });
+
+  const totalWidth = measured.reduce((s, m) => s + m.w, 0) + WORD_SPACING * (WORDS.length - 1);
+  let x = -totalWidth / 2;
+
+  measured.forEach(({ word, geo, w, h }, i) => {
+    const faceMat = new THREE.MeshStandardMaterial({
+      color: 0xffd700, metalness: 1.0, roughness: 0.08,
+      envMapIntensity: 1.2,
+      emissive: new THREE.Color(0xffd040), emissiveIntensity: 0,
+    });
+    const bevelMat = new THREE.MeshStandardMaterial({
+      color: 0xffe066, metalness: 1.0, roughness: 0.02,
+      envMapIntensity: 1.6,
+      emissive: new THREE.Color(0xffd040), emissiveIntensity: 0,
+    });
+
+    const mesh = new THREE.Mesh(geo, [faceMat, bevelMat]);
+    mesh.position.x = x;
+    mesh.position.y = -h / 2;
+    scene.add(mesh);
+
+    wordData.push({ mesh, faceMat, bevelMat, centerX: x + w / 2 });
+    x += w + WORD_SPACING;
+  });
+
+}
+
+new FontLoader().load(
+  'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/fonts/helvetiker_bold.typeface.json',
+  font => { loadedFont = font; buildWords(font); }
+);
+
+// --- Animation state ---
+let params = {
+  emissiveStrength: 1.45,
+  holdTime: 1.5,
+  transSpeed: 4.0,
+  envRotSpeed: 0.08,
+};
+
+let activeWord = 0;
+let lastSwitch = performance.now() / 1000;
+// Per-word current emissive alpha (0..1)
+const emissiveAlpha = WORDS.map(() => 0);
+emissiveAlpha[0] = 1;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = performance.now() * 0.001;
+  const dt = Math.min(0.05, 1 / 60); // capped delta
+
+  // Advance active word
+  if (wordData.length > 0 && t - lastSwitch > params.holdTime) {
+    activeWord = (activeWord + 1) % WORDS.length;
+    lastSwitch = t;
+  }
+
+  // Lerp emissive per word and spotlight target
+  if (wordData.length > 0) {
+    wordData.forEach((d, i) => {
+      const targetAlpha = i === activeWord ? 1 : 0;
+      emissiveAlpha[i] += (targetAlpha - emissiveAlpha[i]) * params.transSpeed * dt;
+      const ei = emissiveAlpha[i] * params.emissiveStrength;
+      d.faceMat.emissiveIntensity = ei;
+      d.bevelMat.emissiveIntensity = ei * 1.3;
+    });
+  }
+
+  // Rotate environment map for drifting reflections
+  scene.environmentRotation.y += params.envRotSpeed * dt;
+
+  orbitControls.update();
+  composer.render();
+}
+animate();
+
+// --- Resize ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Controls ---
+function fmt(v, d = 2) { return parseFloat(v).toFixed(d); }
+function rebind(id, valId, decimals, cb) {
+  const el = document.getElementById(id);
+  const vEl = valId ? document.getElementById(valId) : null;
+  el.addEventListener('input', () => {
+    if (vEl) vEl.textContent = fmt(el.value, decimals);
+    cb(parseFloat(el.value));
+  });
+}
+
+rebind('metalness',  'vMetalness', 2, v => wordData.forEach(d => { d.faceMat.metalness = v; d.bevelMat.metalness = v; }));
+rebind('roughness',  'vRoughness', 2, v => wordData.forEach(d => { d.faceMat.roughness = v; }));
+rebind('envInt',     'vEnvInt',    2, v => wordData.forEach(d => { d.faceMat.envMapIntensity = v; d.bevelMat.envMapIntensity = v * 1.3; }));
+rebind('emissive',   'vEmissive',  2, v => { params.emissiveStrength = v; });
+rebind('holdTime',   'vHoldTime',  2, v => { params.holdTime = v; });
+rebind('transSpeed', 'vTransSpeed',2, v => { params.transSpeed = v; });
+// Geometry — rebuild on change (bevelSegs rebuilds on release to avoid churn)
+function rebindGeo(id, valId, decimals, key, useChangeEvent = false) {
+  const el = document.getElementById(id);
+  const vEl = document.getElementById(valId);
+  const ev = useChangeEvent ? 'change' : 'input';
+  el.addEventListener(ev, () => {
+    vEl.textContent = fmt(el.value, decimals);
+    geoParams[key] = parseFloat(el.value);
+    if (loadedFont) buildWords(loadedFont);
+  });
+  // Still update the label live for bevelSegs even if rebuild waits for release
+  if (useChangeEvent) {
+    el.addEventListener('input', () => { vEl.textContent = fmt(el.value, decimals); });
+  }
+}
+rebindGeo('gDepth',      'vDepth',      2, 'depth');
+rebindGeo('gBevelSize',  'vBevelSize',  2, 'bevelSize');
+rebindGeo('gBevelThick', 'vBevelThick', 2, 'bevelThickness');
+rebindGeo('gBevelSegs',  'vBevelSegs',  0, 'bevelSegments', true);
+
+rebind('bloomStr',   'vBloomStr',  2, v => { bloomPass.strength = v; });
+rebind('bloomRad',   'vBloomRad',  2, v => { bloomPass.radius = v; });
+rebind('bloomThr',   'vBloomThr',  2, v => { bloomPass.threshold = v; });
+rebind('exposure',   'vExposure',  2, v => { renderer.toneMappingExposure = v; });
+document.getElementById('hdrSelect').addEventListener('change', e => loadHDR(e.target.value));
+rebind('bgBlur',      'vBgBlur',    2, v => { scene.backgroundBlurriness = v; });
+rebind('bgInt',       'vBgInt',    2, v => { scene.backgroundIntensity = v; });
+rebind('envRot',      'vEnvRot',   2, v => { params.envRotSpeed = v; });
+</script>
+</body>
+</html>

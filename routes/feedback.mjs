@@ -1,7 +1,9 @@
 import express from 'express'
 import { addFeedback } from '../services/pg.mjs'
+import { requireAuth } from '../middleware/auth.mjs'
 
 const router = express.Router()
+router.use(requireAuth)
 
 router.post('/feedback', async (req, res) => {
   console.log(req.body)

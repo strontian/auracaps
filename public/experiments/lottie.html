@@ -41,8 +41,8 @@
 		<script type="importmap">
       {
         "imports": {
-          "three": "./three/three.module.js",
-          "three/addons/": "./three/jsm/"
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
         }
       }
     </script>
@@ -73,7 +73,7 @@
 
 				const loader = new THREE.FileLoader();
 				loader.setResponseType( 'json' );
-				loader.load( 'textures/lottie.json', function ( data ) {
+				loader.load( '../textures/lottie.json', function ( data ) {
 
 					const container = document.createElement( 'div' );
 					const dpr = window.devicePixelRatio;

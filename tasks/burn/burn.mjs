@@ -1,15 +1,15 @@
-import { transcribeLocalFile } from '../services/deepgram.mjs'
+import { transcribeLocalFile } from '../../services/deepgram.mjs'
 import { srt } from '@deepgram/captions'
-import { generateStyledCaptions } from '../services/local_caption.mjs'
+import { generateStyledCaptions } from '../../services/local_caption.mjs'
 import { execFile } from 'child_process'
 import { writeFileSync, existsSync, readFileSync } from 'fs'
 import ffprobePath from 'ffprobe-static'
 
 // --- Config ---
-const videoPath  = 'work/IMG_4785.mov'
-const srtPath    = 'work/IMG_4785.srt'
-const wordsPath  = 'work/IMG_4785_words.json'
-const outputPath = 'work/IMG_4785_neon.mp4'
+const videoPath  = 'tasks/resources/IMG_4785.mov'
+const srtPath    = 'tasks/burn/IMG_4785.srt'
+const wordsPath  = 'tasks/burn/IMG_4785_words.json'
+const outputPath = 'tasks/burn/output.mp4'
 const fontSize = 65
 const textHeightPercent = 5
 

@@ -1,5 +1,5 @@
 import { createCanvas } from 'canvas'
-import { renderNeonEffect } from '../public/effects.mjs'
+import { renderNeonEffect } from '../../public/effects.mjs'
 
 const width  = 1080
 const height = 1920

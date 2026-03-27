@@ -107,7 +107,7 @@ let rotationFilter = '';
 if (rotation === -90) rotationFilter = ',transpose=1';
 else if (rotation === 90) rotationFilter = ',transpose=2';
 
-const tonemapFilter = `[0:v]zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p[sdr];[sdr][1:v]overlay=0:0:format=auto${rotationFilter}`;
+const tonemapFilter = `[0:v]zscale=t=linear:npl=203:tin=arib-std-b67:pin=bt2020:min=bt2020nc,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p[sdr];[sdr][1:v]overlay=0:0:format=auto${rotationFilter}`;
 const straightFilter = `[0:v][1:v]overlay=0:0:format=auto${rotationFilter}`;
 const filterComplex = isHDR ? tonemapFilter : straightFilter;
 

@@ -10,6 +10,7 @@ import ffprobePath from 'ffprobe-static'
 import { generateStyledCaptions } from '../services/local_caption.mjs'; 
 
 import crypto from 'crypto'
+import { requireAuth } from '../middleware/auth.mjs'
 
 export function fromDisplayName(accountId, fileName) {
 
@@ -31,6 +32,7 @@ export function fromDisplayName(accountId, fileName) {
 }
 
 const router = express.Router()
+router.use(requireAuth)
 
 // Create a video entry and return the ID
 router.post('/videos/create', async (req, res) => {
@@ -147,6 +149,7 @@ async function generateHolographicCaptionsForVideo(accountId, sourceVideoId, fon
       duration: videoInfo.duration,
       fps: videoInfo.fps || 30,
       rotation: videoInfo.rotation || 0,
+      isHDR: videoInfo.isHDR || false,
       words: words
     });
 
@@ -204,7 +207,7 @@ async function probeVideo(videoPath) {
     execFile(ffprobePath.path, [
       '-v', 'error',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height,duration:stream_tags=rotate',
+      '-show_entries', 'stream=width,height,duration,color_transfer:stream_tags=rotate',
       '-of', 'json',
       videoPath
     ], (error, stdout, stderr) => {
@@ -224,11 +227,13 @@ async function probeVideo(videoPath) {
           [width, height] = [height, width]; // Swap dimensions
         }
         
+        const isHDR = ['arib-std-b67', 'smpte2084'].includes(stream.color_transfer)
         resolve({
           width: width,
           height: height,
           duration: parseFloat(stream.duration),
-          rotation: rotation
+          rotation: rotation,
+          isHDR: isHDR
         });
       }
     });

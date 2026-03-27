@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Caption Effect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 100vh;
+            background: #080408;
+            font-family: 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        canvas {
+            box-shadow: 0 0 60px rgba(255, 80, 0, 0.3);
+            background: #0a0608;
+            border: 4px solid #2a1a0a;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            background: #111; padding: 25px; border-radius: 12px;
+            border: 1px solid #2a2a2a; display: flex; flex-wrap: wrap;
+            gap: 30px; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6); max-width: 900px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 8px; width: 160px; }
+        .label {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1px; color: #888;
+        }
+        .value-readout {
+            font-family: monospace; color: #ff6620; font-size: 0.9rem;
+            background: rgba(0,0,0,0.4); padding: 2px 6px;
+            border-radius: 4px; border: 1px solid #2a2a2a;
+        }
+        button#playBtn {
+            background: #ff4400; color: #fff; border: none;
+            padding: 15px 30px; font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem; cursor: pointer; border-radius: 4px;
+            box-shadow: 0 0 20px rgba(255,68,0,0.6); transition: all 0.2s;
+            letter-spacing: 2px;
+        }
+        button#playBtn:hover { background: #ff6620; box-shadow: 0 0 30px rgba(255,102,32,0.8); transform: scale(1.05); }
+        button#playBtn:disabled { background: #222; color: #444; box-shadow: none; cursor: not-allowed; }
+        .timer-display {
+            font-family: monospace; font-size: 1.2rem; color: #ff6620;
+            text-shadow: 0 0 8px #ff6620; min-width: 80px; text-align: right;
+        }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #ff6620; margin-top: -6px; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #333; border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    <div class="controls">
+        <button id="playBtn">PLAY</button>
+        <div class="timer-display" id="timer">0.00s</div>
+
+        <div style="border-left:1px solid #222; padding-left:30px; display:flex; flex-direction:column; gap:15px;">
+            <div class="control-group">
+                <div class="label"><span>Particle Count</span><span id="countVal" class="value-readout">120</span></div>
+                <input type="range" id="countSlider" min="20" max="300" step="10" value="120">
+            </div>
+            <div class="control-group">
+                <div class="label"><span>Flame Height</span><span id="heightVal" class="value-readout">1.0</span></div>
+                <input type="range" id="heightSlider" min="0.2" max="2.5" step="0.1" value="1.0">
+            </div>
+        </div>
+
+        <div style="border-left:1px solid #222; padding-left:30px; display:flex; flex-direction:column; gap:15px;">
+            <div class="control-group">
+                <div class="label"><span>Burst Intensity</span><span id="burstVal" class="value-readout">3.0</span></div>
+                <input type="range" id="burstSlider" min="1" max="6" step="0.1" value="3.0">
+            </div>
+            <div class="control-group">
+                <div class="label"><span>Wind</span><span id="windVal" class="value-readout">0.3</span></div>
+                <input type="range" id="windSlider" min="-1" max="1" step="0.05" value="0.3">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const WIDTH = 1200, HEIGHT = 260;
+        canvas.width = WIDTH; canvas.height = HEIGHT;
+
+        const FONT_SIZE = 72;
+        const FONT = `bold ${FONT_SIZE}px 'Bebas Neue', sans-serif`;
+
+        // --- SRT DATA ---
+        const srtRaw = `
+1
+00:00:00,200 --> 00:00:02,000
+Hi. So
+
+2
+00:00:02,100 --> 00:00:04,900
+I recently got back into playing Magic.
+
+3
+00:00:05,100 --> 00:00:07,500
+It's surprisingly expensive!
+`;
+
+        const rawWords = [
+            { punctuated_word: 'Hi.',           start: 0.24, end: 0.74 },
+            { punctuated_word: 'So',            start: 1.44, end: 1.94 },
+            { punctuated_word: 'I',             start: 2.16, end: 2.56 },
+            { punctuated_word: 'recently',      start: 2.56, end: 3.04 },
+            { punctuated_word: 'got',           start: 3.04, end: 3.28 },
+            { punctuated_word: 'back',          start: 3.28, end: 3.44 },
+            { punctuated_word: 'into',          start: 3.44, end: 3.92 },
+            { punctuated_word: 'playing',       start: 3.92, end: 4.40 },
+            { punctuated_word: 'Magic.',        start: 4.40, end: 4.72 },
+            { punctuated_word: "It's",          start: 5.10, end: 5.40 },
+            { punctuated_word: 'surprisingly',  start: 5.40, end: 6.20 },
+            { punctuated_word: 'expensive!',    start: 6.20, end: 6.90 },
+        ];
+
+        function parseSRTTime(t) {
+            const [hms, ms] = t.split(',');
+            const [h, m, s] = hms.split(':').map(Number);
+            return h * 3600 + m * 60 + s + Number(ms) / 1000;
+        }
+        function parseSRT(raw) {
+            return raw.trim().split(/\n\s*\n/).map(block => {
+                const lines = block.split('\n');
+                if (lines.length < 3) return null;
+                const [s, e] = lines[1].split(' --> ');
+                return { start: parseSRTTime(s), end: parseSRTTime(e), text: lines.slice(2).join(' ') };
+            }).filter(Boolean);
+        }
+        const srtBlocks = parseSRT(srtRaw);
+
+        // --- SETTINGS ---
+        let maxParticles = 120;
+        let flameHeight = 1.0;
+        let burstIntensity = 3.0;
+        let wind = 0.3;
+
+        // --- STATE ---
+        let isPlaying = false, startTs = 0, playbackTime = 0;
+        let particles = [];
+        let wordEmitMap = {}; // track last burst time per word start
+
+        // --- PARTICLE SYSTEM ---
+        function createParticle(x, y, burst) {
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+            const speed = (0.5 + Math.random() * 1.5) * flameHeight * (burst ? burstIntensity : 1);
+            return {
+                x, y,
+                vx: Math.cos(angle) * speed * 0.6 + wind * 0.4,
+                vy: Math.sin(angle) * speed,
+                life: 1.0,
+                decay: 0.012 + Math.random() * 0.025,
+                size: (2 + Math.random() * 6) * (burst ? 1.5 : 1),
+                hue: 10 + Math.random() * 40, // orange-red range
+                burst,
+                turbX: (Math.random() - 0.5) * 0.3,
+            };
+        }
+
+        function updateParticles(dt) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.vy -= 0.08 * flameHeight; // updraft
+                p.vx += p.turbX + wind * 0.05;
+                p.y += p.vy;
+                p.life -= p.decay;
+                p.size *= 0.98;
+                if (p.life <= 0 || p.size < 0.3) particles.splice(i, 1);
+            }
+        }
+
+        function drawParticles() {
+            for (const p of particles) {
+                const a = Math.max(0, p.life);
+                const bright = p.life > 0.6 ? 90 : 60;
+                ctx.save();
+                ctx.globalAlpha = a * 0.85;
+                ctx.globalCompositeOperation = 'lighter';
+                const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+                grad.addColorStop(0, `hsl(${p.hue + 40}, 100%, ${bright}%)`);
+                grad.addColorStop(0.4, `hsl(${p.hue}, 100%, 50%)`);
+                grad.addColorStop(1, `hsla(${p.hue - 10}, 100%, 30%, 0)`);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Measure word positions on the canvas
+        function measureLayout(blockWords) {
+            ctx.font = FONT;
+            ctx.textBaseline = 'alphabetic';
+            ctx.textAlign = 'left';
+            let totalWidth = 0;
+            const SPACING = 20;
+            blockWords.forEach(w => { w._mw = ctx.measureText(w.punctuated_word).width; totalWidth += w._mw; });
+            totalWidth += (blockWords.length - 1) * SPACING;
+            let x = (WIDTH - totalWidth) / 2;
+            const y = HEIGHT * 0.72;
+            blockWords.forEach(w => {
+                w._x = x;
+                w._y = y;
+                x += w._mw + SPACING;
+            });
+            return SPACING;
+        }
+
+        function render(ts) {
+            if (isPlaying) {
+                playbackTime = (ts - startTs) / 1000;
+                document.getElementById('timer').innerText = playbackTime.toFixed(2) + 's';
+                const lastEnd = rawWords[rawWords.length - 1].end;
+                if (playbackTime > lastEnd + 2) {
+                    isPlaying = false;
+                    playbackTime = 0;
+                    particles = [];
+                    wordEmitMap = {};
+                    document.getElementById('playBtn').disabled = false;
+                    document.getElementById('playBtn').innerText = 'REPLAY';
+                }
+            }
+
+            // Clear
+            ctx.fillStyle = 'rgba(8, 4, 8, 0.25)';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            const activeBlock = srtBlocks.find(b => playbackTime >= b.start && playbackTime <= b.end + 0.3);
+
+            if (activeBlock) {
+                const blockWords = rawWords.filter(w => w.start >= activeBlock.start - 0.1 && w.start <= activeBlock.end + 0.1);
+                measureLayout(blockWords);
+
+                // Emit particles along active word baselines
+                blockWords.forEach(word => {
+                    const isActive = playbackTime >= word.start && playbackTime <= word.end + 0.5;
+                    if (!isActive) return;
+
+                    const isBurst = !wordEmitMap[word.start] && playbackTime >= word.start;
+                    if (isBurst) {
+                        wordEmitMap[word.start] = true;
+                        // Burst of particles when word activates
+                        const burstCount = Math.floor(maxParticles * 0.4);
+                        for (let i = 0; i < burstCount; i++) {
+                            const bx = word._x + Math.random() * word._mw;
+                            const by = word._y - Math.random() * FONT_SIZE * 0.2;
+                            particles.push(createParticle(bx, by, true));
+                        }
+                    }
+
+                    // Continuous idle emit
+                    const idleCount = Math.max(1, Math.floor(maxParticles / 40));
+                    for (let i = 0; i < idleCount; i++) {
+                        if (particles.length < maxParticles * 2) {
+                            const bx = word._x + Math.random() * word._mw;
+                            const by = word._y - FONT_SIZE * (0.05 + Math.random() * 0.15);
+                            particles.push(createParticle(bx, by, false));
+                        }
+                    }
+                });
+
+                updateParticles();
+                drawParticles();
+
+                // Draw text
+                blockWords.forEach(word => {
+                    const shown = playbackTime >= word.start;
+                    if (!shown) return;
+
+                    ctx.save();
+                    // Fire glow on text
+                    ctx.shadowColor = '#ff3300';
+                    ctx.shadowBlur = 20;
+                    ctx.fillStyle = '#ffcc44';
+                    ctx.font = FONT;
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(word.punctuated_word, word._x, word._y);
+
+                    // Inner bright core
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#fff8e0';
+                    ctx.globalAlpha = 0.7;
+                    ctx.fillText(word.punctuated_word, word._x, word._y);
+                    ctx.restore();
+                });
+
+            } else {
+                updateParticles();
+                drawParticles();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Controls
+        document.getElementById('countSlider').addEventListener('input', e => {
+            maxParticles = parseInt(e.target.value);
+            document.getElementById('countVal').innerText = maxParticles;
+        });
+        document.getElementById('heightSlider').addEventListener('input', e => {
+            flameHeight = parseFloat(e.target.value);
+            document.getElementById('heightVal').innerText = flameHeight.toFixed(1);
+        });
+        document.getElementById('burstSlider').addEventListener('input', e => {
+            burstIntensity = parseFloat(e.target.value);
+            document.getElementById('burstVal').innerText = burstIntensity.toFixed(1);
+        });
+        document.getElementById('windSlider').addEventListener('input', e => {
+            wind = parseFloat(e.target.value);
+            document.getElementById('windVal').innerText = wind.toFixed(2);
+        });
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (isPlaying) return;
+            particles = [];
+            wordEmitMap = {};
+            isPlaying = true; startTs = performance.now(); playbackTime = 0;
+            document.getElementById('playBtn').disabled = true;
+            document.getElementById('playBtn').innerText = 'PLAYING...';
+        });
+
+        document.fonts.load(FONT).then(() => requestAnimationFrame(render)).catch(() => requestAnimationFrame(render));
+    </script>
+</body>
+</html>

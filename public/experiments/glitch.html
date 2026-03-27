@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glitch Caption Effect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #050505;
+            font-family: 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        canvas {
+            box-shadow: 0 0 30px rgba(255, 30, 80, 0.2);
+            background-color: #0a0a0a;
+            border: 4px solid #222;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            max-width: 900px;
+        }
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 160px;
+        }
+        .label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #aaa;
+        }
+        .value-readout {
+            font-family: monospace;
+            color: #ff2255;
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+        button#playBtn {
+            background: #ff2255;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px #ff2255;
+            transition: all 0.2s;
+        }
+        button#playBtn:hover {
+            background: #fff;
+            box-shadow: 0 0 25px #ff2255;
+            transform: scale(1.05);
+        }
+        button#playBtn:disabled {
+            background: #333;
+            color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .timer-display {
+            font-family: monospace;
+            font-size: 1.2rem;
+            color: #ff2255;
+            text-shadow: 0 0 5px #ff2255;
+            min-width: 80px;
+            text-align: right;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #fff;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #444;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+
+    <div class="controls">
+        <button id="playBtn">PLAY</button>
+        <div class="timer-display" id="timer">0.00s</div>
+
+        <div class="control-section" style="border-left: 1px solid #333; padding-left: 30px;">
+            <div class="control-group">
+                <div class="label">
+                    <span>Intensity</span>
+                    <span id="intensityVal" class="value-readout">0.40</span>
+                </div>
+                <input type="range" id="intensitySlider" min="0" max="1" step="0.05" value="0.4">
+            </div>
+            <div class="control-group">
+                <div class="label">
+                    <span>RGB Split</span>
+                    <span id="splitVal" class="value-readout">8</span>
+                </div>
+                <input type="range" id="splitSlider" min="0" max="30" step="1" value="8">
+            </div>
+        </div>
+
+        <div class="control-section" style="border-left: 1px solid #333; padding-left: 30px;">
+            <div class="control-group">
+                <div class="label">
+                    <span>Glitch Rate</span>
+                    <span id="rateVal" class="value-readout">0.06</span>
+                </div>
+                <input type="range" id="rateSlider" min="0.0" max="0.4" step="0.01" value="0.06">
+            </div>
+            <div class="control-group">
+                <div class="label">
+                    <span>Corruption</span>
+                    <span id="corruptVal" class="value-readout">0.35</span>
+                </div>
+                <input type="range" id="corruptSlider" min="0" max="1" step="0.05" value="0.35">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        const timerDisplay = document.getElementById('timer');
+        const playBtn = document.getElementById('playBtn');
+
+        const WIDTH = 1200;
+        const HEIGHT = 250;
+        const FONT_SIZE = 60;
+        const FONT_FAMILY = "'Share Tech Mono', monospace";
+        const SPACING = 18;
+
+        // --- HARDCODED SRT DATA ---
+        const srtRaw = `
+1
+00:00:00,200 --> 00:00:02,000
+Hi. So
+
+2
+00:00:02,100 --> 00:00:04,900
+I recently got back into playing Magic.
+
+3
+00:00:05,100 --> 00:00:07,500
+It's surprisingly expensive!
+`;
+
+        // --- HARDCODED WORD DATA ---
+        const rawData = [
+            { word: 'hi',           start: 0.24, end: 0.74,  punctuated_word: 'Hi.' },
+            { word: 'so',           start: 1.44, end: 1.94,  punctuated_word: 'So' },
+            { word: 'i',            start: 2.16, end: 2.56,  punctuated_word: 'I' },
+            { word: 'recently',     start: 2.56, end: 3.04,  punctuated_word: 'recently' },
+            { word: 'got',          start: 3.04, end: 3.28,  punctuated_word: 'got' },
+            { word: 'back',         start: 3.28, end: 3.44,  punctuated_word: 'back' },
+            { word: 'into',         start: 3.44, end: 3.92,  punctuated_word: 'into' },
+            { word: 'playing',      start: 3.92, end: 4.40,  punctuated_word: 'playing' },
+            { word: 'magic',        start: 4.40, end: 4.72,  punctuated_word: 'Magic.' },
+            { word: 'its',          start: 5.10, end: 5.40,  punctuated_word: "It's" },
+            { word: 'surprisingly', start: 5.40, end: 6.20,  punctuated_word: 'surprisingly' },
+            { word: 'expensive',    start: 6.20, end: 6.90,  punctuated_word: 'expensive!' },
+        ];
+
+        // --- SETTINGS ---
+        let baseIntensity = 0.4;
+        let maxSplit = 8;
+        let glitchRate = 0.06;
+        let corruptionMax = 0.35;
+
+        // --- STATE ---
+        let isPlaying = false;
+        let startTimestamp = 0;
+        let playbackTime = 0;
+        let globalGlitch = 0;
+        let sliceIntensity = 0;
+        let nextGlitchCheck = 0;
+
+        const GLITCH_CHARS = '!@#$%^&*<>?|{}[]▓▒░█▀■¥€§';
+
+        function corruptText(text, amount) {
+            return text.split('').map(char => {
+                if (char === ' ') return ' ';
+                return Math.random() < amount
+                    ? GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)]
+                    : char;
+            }).join('');
+        }
+
+        // --- PARSING ---
+        function parseSRTTime(t) {
+            const [hms, ms] = t.split(',');
+            const [h, m, s] = hms.split(':').map(Number);
+            return h * 3600 + m * 60 + s + Number(ms) / 1000;
+        }
+
+        function parseSRT(raw) {
+            return raw.trim().split(/\n\s*\n/).map(block => {
+                const lines = block.split('\n');
+                if (lines.length < 3) return null;
+                const [startStr, endStr] = lines[1].split(' --> ');
+                return { start: parseSRTTime(startStr), end: parseSRTTime(endStr), text: lines.slice(2).join(' ') };
+            }).filter(Boolean);
+        }
+
+        const srtBlocks = parseSRT(srtRaw);
+
+        let allWords = rawData.map(w => ({
+            text: w.punctuated_word,
+            start: w.start,
+            end: w.end,
+            alpha: 0,
+            glitchBurst: 0,
+            wasActive: false,
+            width: 0,
+        }));
+
+        // --- OFFSCREEN CANVAS (for slice displacement) ---
+        const offscreen = document.createElement('canvas');
+        offscreen.width = WIDTH;
+        offscreen.height = HEIGHT;
+        const offCtx = offscreen.getContext('2d');
+
+        // --- PHYSICS ---
+        function updatePhysics(timestamp) {
+            if (!isPlaying) return;
+
+            playbackTime = (timestamp - startTimestamp) / 1000;
+            timerDisplay.innerText = playbackTime.toFixed(2) + 's';
+
+            const lastEnd = allWords[allWords.length - 1].end;
+            if (playbackTime > lastEnd + 1.5) {
+                isPlaying = false;
+                playbackTime = 0;
+                playBtn.disabled = false;
+                playBtn.innerText = 'REPLAY';
+                allWords.forEach(w => { w.alpha = 0; w.glitchBurst = 0; w.wasActive = false; });
+            }
+
+            allWords.forEach(word => {
+                const isActive = playbackTime >= word.start && playbackTime <= word.end;
+
+                if (isActive && !word.wasActive) {
+                    word.glitchBurst = 1.0;
+                    globalGlitch = Math.max(globalGlitch, 0.8);
+                    sliceIntensity = Math.max(sliceIntensity, 0.6);
+                    word.wasActive = true;
+                } else if (!isActive) {
+                    word.wasActive = false;
+                }
+
+                word.alpha = isActive
+                    ? Math.min(1, word.alpha + 0.15)
+                    : Math.max(0, word.alpha - 0.03);
+
+                word.glitchBurst = Math.max(0, word.glitchBurst - 0.07);
+            });
+
+            // Random ambient glitch events
+            if (playbackTime > nextGlitchCheck) {
+                if (Math.random() < glitchRate) {
+                    globalGlitch = Math.max(globalGlitch, 0.3 + Math.random() * 0.5);
+                    sliceIntensity = Math.max(sliceIntensity, Math.random() * 0.5);
+                }
+                nextGlitchCheck = playbackTime + 0.04;
+            }
+
+            globalGlitch  = Math.max(0, globalGlitch  - 0.04);
+            sliceIntensity = Math.max(0, sliceIntensity - 0.05);
+        }
+
+        // --- SCANLINES ---
+        function drawScanlines(targetCtx) {
+            targetCtx.save();
+            targetCtx.globalAlpha = 0.10;
+            targetCtx.fillStyle = '#000';
+            for (let y = 0; y < HEIGHT; y += 4) {
+                targetCtx.fillRect(0, y, WIDTH, 2);
+            }
+            targetCtx.restore();
+        }
+
+        // --- NOISE FLECKS ---
+        function drawNoise(targetCtx, amount) {
+            if (amount < 0.05) return;
+            targetCtx.save();
+            const count = Math.floor(amount * 20);
+            for (let i = 0; i < count; i++) {
+                const x = Math.random() * WIDTH;
+                const y = Math.random() * HEIGHT;
+                const w = 2 + Math.random() * 8;
+                const h = 1 + Math.random() * 3;
+                targetCtx.globalAlpha = Math.random() * 0.6 * amount;
+                targetCtx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';
+                targetCtx.fillRect(x, y, w, h);
+            }
+            targetCtx.restore();
+        }
+
+        // --- DRAW WORD ---
+        function drawWord(targetCtx, word, x, y) {
+            if (word.alpha <= 0.01) return;
+
+            const burst = word.glitchBurst;
+            const ambient = globalGlitch * 0.4;
+            const glitch = Math.max(burst, ambient) * baseIntensity;
+            const split = glitch * maxSplit + (glitch > 0.05 ? (Math.random() - 0.5) * glitch * 5 : 0);
+            const corruption = burst * corruptionMax;
+
+            const displayText = corruption > 0.08 ? corruptText(word.text, corruption) : word.text;
+            const yJitter = glitch > 0.1 ? (Math.random() - 0.5) * glitch * 6 : 0;
+
+            targetCtx.save();
+            targetCtx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+            targetCtx.textBaseline = 'middle';
+            targetCtx.textAlign = 'left';
+
+            if (split > 0.5) {
+                // Red channel — left
+                targetCtx.globalAlpha = word.alpha * 0.8;
+                targetCtx.fillStyle = '#ff2255';
+                targetCtx.fillText(displayText, x - split, y + yJitter);
+
+                // Cyan channel — right
+                targetCtx.globalAlpha = word.alpha * 0.8;
+                targetCtx.fillStyle = '#00ddff';
+                targetCtx.fillText(displayText, x + split, y - yJitter);
+            }
+
+            // White base
+            targetCtx.globalAlpha = word.alpha;
+            targetCtx.fillStyle = '#ffffff';
+            targetCtx.fillText(word.text, x, y);
+
+            targetCtx.restore();
+        }
+
+        // --- RENDER ---
+        function render(timestamp) {
+            updatePhysics(timestamp);
+
+            // Render scene to offscreen
+            offCtx.clearRect(0, 0, WIDTH, HEIGHT);
+            offCtx.fillStyle = '#0a0a0a';
+            offCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            offCtx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+
+            const activeBlock = srtBlocks.find(b =>
+                playbackTime >= b.start && playbackTime <= b.end + 0.3
+            );
+
+            if (activeBlock) {
+                const visibleWords = allWords.filter(w =>
+                    w.start >= activeBlock.start - 0.5 && w.start <= activeBlock.end + 0.5
+                );
+
+                if (visibleWords.length > 0) {
+                    let totalWidth = 0;
+                    visibleWords.forEach(w => {
+                        w.width = offCtx.measureText(w.text).width;
+                        totalWidth += w.width;
+                    });
+                    totalWidth += (visibleWords.length - 1) * SPACING;
+
+                    let currentX = (WIDTH - totalWidth) / 2;
+                    const Y = HEIGHT / 2;
+
+                    visibleWords.forEach(word => {
+                        drawWord(offCtx, word, currentX, Y);
+                        currentX += word.width + SPACING;
+                    });
+                }
+            }
+
+            drawScanlines(offCtx);
+            drawNoise(offCtx, globalGlitch * baseIntensity);
+
+            // Composite to main canvas
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            ctx.drawImage(offscreen, 0, 0);
+
+            // Horizontal slice displacement
+            if (sliceIntensity > 0.1) {
+                const numSlices = Math.floor(sliceIntensity * 7) + 1;
+                for (let i = 0; i < numSlices; i++) {
+                    const sy = Math.floor(Math.random() * HEIGHT);
+                    const sh = Math.min(2 + Math.floor(Math.random() * 28), HEIGHT - sy);
+                    const dx = (Math.random() - 0.5) * 60 * sliceIntensity;
+                    ctx.drawImage(offscreen, 0, sy, WIDTH, sh, dx, sy, WIDTH, sh);
+                }
+            }
+
+            // Full-screen color flash on big glitch
+            if (globalGlitch > 0.85 && Math.random() < 0.12) {
+                ctx.save();
+                ctx.globalAlpha = 0.08;
+                ctx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                ctx.restore();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // --- CONTROLS ---
+        document.getElementById('intensitySlider').addEventListener('input', e => {
+            baseIntensity = parseFloat(e.target.value);
+            document.getElementById('intensityVal').innerText = baseIntensity.toFixed(2);
+        });
+        document.getElementById('splitSlider').addEventListener('input', e => {
+            maxSplit = parseInt(e.target.value);
+            document.getElementById('splitVal').innerText = maxSplit;
+        });
+        document.getElementById('rateSlider').addEventListener('input', e => {
+            glitchRate = parseFloat(e.target.value);
+            document.getElementById('rateVal').innerText = glitchRate.toFixed(2);
+        });
+        document.getElementById('corruptSlider').addEventListener('input', e => {
+            corruptionMax = parseFloat(e.target.value);
+            document.getElementById('corruptVal').innerText = corruptionMax.toFixed(2);
+        });
+
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            allWords.forEach(w => { w.alpha = 0; w.glitchBurst = 0; w.wasActive = false; });
+            globalGlitch = 0;
+            sliceIntensity = 0;
+            playbackTime = 0;
+            isPlaying = true;
+            startTimestamp = performance.now();
+            playBtn.disabled = true;
+            playBtn.innerText = 'PLAYING...';
+        });
+
+        // --- INIT ---
+        mainCanvas.width = WIDTH;
+        mainCanvas.height = HEIGHT;
+
+        document.fonts.load(`${FONT_SIZE}px Share Tech Mono`).then(() => {
+            requestAnimationFrame(render);
+        }).catch(() => {
+            requestAnimationFrame(render);
+        });
+    </script>
+</body>
+</html>

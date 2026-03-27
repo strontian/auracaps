@@ -1,13 +1,13 @@
 import { createCanvas, registerFont } from 'canvas'
-import { renderNeonEffect } from '../public/effects.mjs'
+import { renderNeonEffect } from '../../public/effects.mjs'
 import { readFileSync, mkdirSync } from 'fs'
 import { writeFile } from 'fs/promises'
 import path from 'path'
 
 // --- Config ---
-const srtPath   = 'work/IMG_4785.srt'
-const wordsPath = 'work/IMG_4785_words.json'
-const outDir    = 'work/frames'
+const srtPath   = 'work/test_validity/IMG_4785.srt'
+const wordsPath = 'work/test_validity/IMG_4785_words.json'
+const outDir    = 'work/render_frames/frames'
 const width     = 720
 const height    = 1280
 const fps       = 30

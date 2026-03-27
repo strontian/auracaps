@@ -2,7 +2,7 @@
 
 export const requireAuth = (req, res, next) => {
   if (!req.session.accountId) {
-    //return res.status(401).json({ error: 'Authentication required' })
+    return res.status(401).json({ error: 'Authentication required' })
   }
   next()
 }

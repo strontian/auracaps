@@ -68,6 +68,31 @@
       background: #1e2a38;
     }
 
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px 6px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #555;
+      cursor: pointer;
+      user-select: none;
+      border-top: 1px solid #222;
+      margin-top: 4px;
+    }
+    .section-header:hover { color: #888; }
+    .section-header .arrow {
+      font-size: 8px;
+      transition: transform 0.15s;
+      display: inline-block;
+    }
+    .section-header.open .arrow { transform: rotate(90deg); }
+    .section-items { display: none; }
+    .section-items.open { display: block; }
+    .section-items a { padding-left: 28px; }
+
     /* Main */
     #main {
       flex: 1;
@@ -135,27 +160,38 @@
 </div>
 
 <script>
-  const demos = [
-    { name: '3d',             file: '3d.html' },
-    { name: 'adapt neon',     file: 'adapt_neon.html' },
-    { name: 'anim',           file: 'anim.html' },
-    { name: 'bevel',          file: 'bevel.html' },
-    { name: 'blend',          file: 'blend.html' },
-    { name: 'epic',           file: 'epic.html' },
-    { name: 'gold',           file: 'gold.html' },
-    { name: 'gold room',      file: 'gold-room.html' },
-    { name: 'gold video',     file: 'gold-video.html' },
-    { name: 'grad',           file: 'grad.html' },
-    { name: 'hdemo',          file: 'hdemo.html' },
-    { name: 'lottie',         file: 'lottie.html' },
-    { name: 'neon',           file: 'neon.html' },
-    { name: 'neon burn',      file: 'neon-burn.html' },
-    { name: 'neon hdr',       file: 'neon_hdr_demo.html' },
-    { name: 'neon hdr 2',     file: 'neon_hdr_demo2.html' },
-    { name: 'rb',             file: 'rb.html' },
-    { name: 'rc',             file: 'rc.html' },
-    { name: 'rc2',            file: 'rc2.html' },
-    { name: 'space',          file: 'space.html' },
+  const entries = [
+    { name: 'adapt neon',   file: 'adapt_neon.html' },
+    { name: 'chalk',        file: 'chalk.html' },
+    { name: 'chrome',       file: 'chrome.html' },
+    { name: 'fire',         file: 'fire.html' },
+    { name: 'glitch',       file: 'glitch.html' },
+    { name: 'neon',         file: 'neon.html' },
+    { name: 'typewriter',   file: 'typewriter.html' },
+    { name: 'neon hdr',     file: 'neon_hdr_demo.html' },
+    { name: 'neon hdr 2',   file: 'neon_hdr_demo2.html' },
+    { name: 'rb',           file: 'rb.html' },
+    { name: 'rc',           file: 'rc.html' },
+    { name: 'rc2',          file: 'rc2.html' },
+    {
+      section: 'canvas fx', collapsed: true, items: [
+        { name: 'bevel',    file: 'bevel.html' },
+        { name: 'blend',    file: 'blend.html' },
+        { name: 'grad',     file: 'grad.html' },
+      ]
+    },
+    {
+      section: 'three.js', collapsed: false, items: [
+        { name: '3d',            file: '3d.html' },
+        { name: 'gold',          file: 'gold.html' },
+        { name: 'gold render',   file: 'gold-render.html' },
+        { name: 'gold room',     file: 'gold-room.html' },
+        { name: 'gold room hdr', file: 'gold-room-hdr.html' },
+        { name: 'gold video',    file: 'gold-video.html' },
+        { name: 'space',         file: 'space.html' },
+        { name: 'lottie',        file: 'lottie.html' },
+      ]
+    },
   ];
 
   const nav = document.getElementById('nav');
@@ -164,9 +200,12 @@
   const currentName = document.getElementById('current-name');
   const openLink = document.getElementById('open-link');
 
-  document.getElementById('count').textContent = `(${demos.length})`;
+  function countDemos(list) {
+    return list.reduce((n, e) => n + (e.section ? e.items.length : 1), 0);
+  }
+  document.getElementById('count').textContent = `(${countDemos(entries)})`;
 
-  demos.forEach(demo => {
+  function makeLink(demo) {
     const a = document.createElement('a');
     a.href = '#';
     a.textContent = demo.name;
@@ -181,23 +220,43 @@
       preview.style.display = 'block';
       preview.src = demo.file;
     });
-    nav.appendChild(a);
-  });
+    return a;
+  }
 
-  // keyboard nav
-  document.addEventListener('keydown', e => {
-    const active = nav.querySelector('a.active');
-    if (!active) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') nav.querySelector('a').click();
+  entries.forEach(entry => {
+    if (!entry.section) {
+      nav.appendChild(makeLink(entry));
       return;
     }
-    if (e.key === 'ArrowDown') {
-      const next = active.nextElementSibling;
-      if (next) next.click();
-    } else if (e.key === 'ArrowUp') {
-      const prev = active.previousElementSibling;
-      if (prev) prev.click();
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `<span class="arrow">▶</span>${entry.section}`;
+
+    const items = document.createElement('div');
+    items.className = 'section-items' + (entry.collapsed ? '' : ' open');
+    if (!entry.collapsed) header.classList.add('open');
+
+    header.addEventListener('click', () => {
+      const open = items.classList.toggle('open');
+      header.classList.toggle('open', open);
+    });
+
+    entry.items.forEach(demo => items.appendChild(makeLink(demo)));
+    nav.appendChild(header);
+    nav.appendChild(items);
+  });
+
+  // keyboard nav (flat links only)
+  document.addEventListener('keydown', e => {
+    const allLinks = [...nav.querySelectorAll('a')];
+    const active = nav.querySelector('a.active');
+    if (!active) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') allLinks[0]?.click();
+      return;
     }
+    const idx = allLinks.indexOf(active);
+    if (e.key === 'ArrowDown' && idx < allLinks.length - 1) allLinks[idx + 1].click();
+    else if (e.key === 'ArrowUp' && idx > 0) allLinks[idx - 1].click();
   });
 </script>
 
