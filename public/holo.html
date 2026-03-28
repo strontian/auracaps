@@ -330,6 +330,58 @@
       text-decoration: underline;
     }
 
+    .style-control-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+
+    .style-picker {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .style-card {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.35);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      font-family: inherit;
+    }
+
+    .style-card:hover {
+      border-color: rgba(255, 255, 255, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .style-card.active {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 1px #60a5fa;
+    }
+
+    .style-card canvas {
+      width: 100%;
+      display: block;
+      background: #000;
+    }
+
+    .style-card span {
+      display: block;
+      text-align: center;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.4rem 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
     @media (max-width: 768px) {
       .page-title {
         font-size: 1.5rem;
@@ -360,6 +412,14 @@
 
       .export-section {
         flex-direction: column;
+      }
+
+      .style-picker {
+        flex-wrap: wrap;
+      }
+
+      .style-card {
+        min-width: calc(50% - 0.375rem);
       }
     }
   </style>
@@ -392,14 +452,26 @@
       <div id="controls">
         <div class="controls-title">Customize Captions</div>
         
-        <div class="control-group">
-          <label for="styleSelect">Caption Style:</label>
-          <select id="styleSelect">
-            <option value="holographic">Cotton Candy</option>
-            <option value="rainbow">Rainbow</option>
-            <option value="led">LED</option>
-            <option value="neon">Neon</option>
-          </select>
+        <div class="control-group style-control-group">
+          <label>Caption Style:</label>
+          <div class="style-picker">
+            <button type="button" class="style-card active" data-style="holographic">
+              <canvas id="preview-holographic"></canvas>
+              <span>Cotton Candy</span>
+            </button>
+            <button type="button" class="style-card" data-style="rainbow">
+              <canvas id="preview-rainbow"></canvas>
+              <span>Rainbow</span>
+            </button>
+            <button type="button" class="style-card" data-style="led">
+              <canvas id="preview-led"></canvas>
+              <span>LED</span>
+            </button>
+            <button type="button" class="style-card" data-style="neon">
+              <canvas id="preview-neon"></canvas>
+              <span>Neon</span>
+            </button>
+          </div>
         </div>
         
         <div class="control-group">
@@ -433,13 +505,67 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const loading = document.getElementById('loading');
-    const styleSelect = document.getElementById('styleSelect');
     const fontSizeInput = document.getElementById('fontSize');
     const fontSizeValue = document.getElementById('fontSizeValue');
     const textHeightInput = document.getElementById('textHeight');
     const textHeightValue = document.getElementById('textHeightValue');
     const exportBtn = document.getElementById('exportBtn');
     const exportStatus = document.getElementById('exportStatus');
+
+    // --- Style card preview setup ---
+    const PREVIEW_W = 280, PREVIEW_H = 78, PREVIEW_FONT = 40;
+    const PREVIEW_TEXT = 'AURA';
+    const PREVIEW_TEXT_HEIGHT = 58;
+
+    const previewAuxCanvas = document.createElement('canvas');
+    previewAuxCanvas.width = PREVIEW_W;
+    previewAuxCanvas.height = PREVIEW_H;
+    const previewAuxCtx = previewAuxCanvas.getContext('2d');
+
+    const previewCtxs = {
+      holographic: document.getElementById('preview-holographic').getContext('2d'),
+      rainbow:     document.getElementById('preview-rainbow').getContext('2d'),
+      led:         document.getElementById('preview-led').getContext('2d'),
+      neon:        document.getElementById('preview-neon').getContext('2d'),
+    };
+    for (const c of Object.values(previewCtxs)) {
+      c.canvas.width = PREVIEW_W;
+      c.canvas.height = PREVIEW_H;
+    }
+
+    let previewRainbowState = {};
+    let previewLedDots = null;
+    const previewStartTime = Date.now();
+    const previewNeonWords = [{ text: PREVIEW_TEXT, alpha: 1.0 }];
+
+    function renderPreviews() {
+      const t = (Date.now() - previewStartTime) / 1000;
+
+      const hCtx = previewCtxs.holographic;
+      hCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+      if (holoImage) {
+        renderHolographicEffect(hCtx, { text: PREVIEW_TEXT, styleImage: holoImage, timestamp: t, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT });
+      }
+
+      const rCtx = previewCtxs.rainbow;
+      rCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+      renderRainbowEffect(rCtx, { text: PREVIEW_TEXT, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, state: previewRainbowState, auxCanvas: previewAuxCanvas });
+
+      const lCtx = previewCtxs.led;
+      lCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+      if (!previewLedDots) {
+        previewLedDots = detectLEDDots({ text: PREVIEW_TEXT, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, squareSize: 5, auxCtx: previewAuxCtx });
+      }
+      if (previewLedDots && previewLedDots.length > 0) {
+        renderLEDEffect(lCtx, { dots: previewLedDots, fontSize: PREVIEW_FONT, squareSize: 5 });
+      }
+
+      const nCtx = previewCtxs.neon;
+      nCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+      renderNeonEffect(nCtx, { text: PREVIEW_TEXT, words: previewNeonWords, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, tubeColor: '#00f7ff', haloColor: '#0051ff' });
+
+      requestAnimationFrame(renderPreviews);
+    }
 
     // Scratchpad variables
     let auxCanvas = null;
@@ -462,11 +588,15 @@
     let videoId = urlParams.get('id')
 
     // --- Event Listeners ---
-    styleSelect.addEventListener('change', (e) => {
-      currentStyle = e.target.value;
-      if (currentStyle === 'holographic') currentStyleImage = holoImage;
-      if (currentStyle === 'led') { lastLEDText = null; ledDots = null; }
-      if (video.paused && !animationFrameId) renderSingleFrame();
+    document.querySelectorAll('.style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        currentStyle = card.dataset.style;
+        if (currentStyle === 'holographic') currentStyleImage = holoImage;
+        if (currentStyle === 'led') { lastLEDText = null; ledDots = null; }
+        if (video.paused && !animationFrameId) renderSingleFrame();
+      });
     });
 
     fontSizeInput.addEventListener('input', (e) => {
@@ -620,6 +750,7 @@
             holoImage.src = '/images/holo.jpg';
         });
         currentStyleImage = holoImage;
+        renderPreviews();
 
         const urlParams = new URLSearchParams(window.location.search)
         const videoName = urlParams.get('id')
