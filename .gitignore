@@ -4,3 +4,10 @@ google_secret.json
 .env
 work
 public/emily.mov
+
+# Video/audio source files and render outputs
+*.mov
+*.mp4
+*.mp3
+*.wav
+*.hdr

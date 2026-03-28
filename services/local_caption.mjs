@@ -6,7 +6,9 @@ import {
   renderLEDEffect,
   detectLEDDots,
   renderRainbowEffect,
-  renderNeonEffect
+  renderNeonEffect,
+  renderTypewriterEffect,
+  renderGlitchEffect
 } from '../public/effects.mjs';
 
 // Register the fonts
@@ -14,8 +16,10 @@ import {
 registerFont('public/fonts/Modak-Regular.ttf', { family: 'Modak' });
 registerFont('public/fonts/Doto-Medium.ttf', { family: 'Doto' });
 registerFont('public/fonts/Tinos-Regular.ttf', { family: 'Tinos' });
-registerFont('public/fonts/Beon-Regular.ttf', { family: 'Beon' }); 
-registerFont('public/fonts/DynaPuff-SemiBold.ttf', { family: 'DynaPuff' }); 
+registerFont('public/fonts/Beon-Regular.ttf', { family: 'Beon' });
+registerFont('public/fonts/DynaPuff-SemiBold.ttf', { family: 'DynaPuff' });
+registerFont('public/fonts/Micro5-Regular.ttf', { family: 'Micro 5' });
+registerFont('public/fonts/ShareTechMono-Regular.ttf', { family: 'Share Tech Mono' });
 
 
 // Parse SRT file
@@ -172,6 +176,7 @@ const sdrEncodeArgs = [
   let lastText = null;
   let currentDots = []; // For LED
   const rainbowState = {}; // For Rainbow (particles)
+  const glitchState = {};  // For Glitch (per-word alpha, burst, global glitch)
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
@@ -249,14 +254,54 @@ const sdrEncodeArgs = [
           haloColor: '#0051ff'
         });
 
+      } else if (captionStyle === 'typewriter') {
+        // --- TYPEWRITER STYLE LOGIC ---
+        lastText = null;
+        currentDots = [];
+
+        renderTypewriterEffect(ctx, {
+          text,
+          allWords: words,
+          subtitle,
+          timestamp,
+          fontSize,
+          textHeightPercent,
+          fontFamily: "'Micro 5'",
+          textColor: '#33ff66',
+          blinkSpeed: 1.5,
+          glowStrength: 0.6,
+          scanIntensity: 0.12,
+        });
+
+      } else if (captionStyle === 'glitch') {
+        // --- GLITCH STYLE LOGIC ---
+        lastText = null;
+        currentDots = [];
+
+        renderGlitchEffect(ctx, {
+          text,
+          allWords: words,
+          subtitle,
+          timestamp,
+          fontSize,
+          textHeightPercent,
+          fontFamily: "'Share Tech Mono'",
+          state: glitchState,
+          auxCanvas,
+          baseIntensity: 0.4,
+          maxSplit: 8,
+          glitchRate: 0.06,
+          corruptionMax: 0.35,
+        });
+
       } else {
         // --- HOLOGRAPHIC STYLE LOGIC ---
-        
+
         if (!holoImage) {
           throw new Error("holoImagePath is required for holographic style");
         }
 
-        lastText = null; 
+        lastText = null;
         currentDots = [];
 
         renderHolographicEffect(ctx, {

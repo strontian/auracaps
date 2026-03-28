@@ -1,5 +1,16 @@
 // effects.js - Shared rendering functions for caption effects
 
+const GLITCH_CHARS = '!@#$%^&*<>?|{}[]▓▒░█▀■¥€§';
+
+function corruptGlitchText(text, amount) {
+  return text.split('').map(char => {
+    if (char === ' ') return ' ';
+    return Math.random() < amount
+      ? GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)]
+      : char;
+  }).join('');
+}
+
 export function wrapText(ctx, text, maxWidth, fontFamily, fontSize) {
   ctx.font = `${fontSize}px ${fontFamily}`;
   
@@ -561,4 +572,282 @@ export function renderNeonEffect(ctx, opts) {
   });
 
   ctx.restore();
+}
+
+export function renderTypewriterEffect(ctx, opts) {
+  const {
+    text,
+    allWords = null,
+    subtitle = null,
+    timestamp = 0,
+    fontSize,
+    textHeightPercent,
+    fontFamily = "'Micro 5'",
+    textColor = '#33ff66',
+    blinkSpeed = 1.5,
+    glowStrength = 0.6,
+    scanIntensity = 0.12,
+  } = opts;
+
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const padding = 50;
+  const maxWidth = canvasWidth - padding * 2;
+  const fontSpec = `${fontSize}px ${fontFamily}`;
+
+  // Wrap text into lines (inline to use correct fontSpec)
+  ctx.font = fontSpec;
+  const allLines = [];
+  for (const para of text.split('\n')) {
+    if (!para.trim()) continue;
+    let current = '';
+    for (const w of para.split(' ')) {
+      const test = current ? `${current} ${w}` : w;
+      if (ctx.measureText(test).width > maxWidth && current) {
+        allLines.push(current);
+        current = w;
+      } else {
+        current = test;
+      }
+    }
+    if (current) allLines.push(current);
+  }
+
+  const position = calculateTextPosition(canvasHeight, allLines.length, fontSize, textHeightPercent);
+
+  // Filter to current subtitle's words
+  const blockWords = (allWords && subtitle)
+    ? allWords.filter(w => w.start >= subtitle.startTime - 0.05 && w.start < subtitle.endTime + 0.05)
+    : [];
+
+  ctx.save();
+  ctx.font = fontSpec;
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = textColor;
+  if (glowStrength > 0) {
+    ctx.shadowColor = textColor;
+    ctx.shadowBlur = 18 * glowStrength;
+  }
+
+  let wordIndex = 0;
+  let cursorX = null;
+  let cursorY = null;
+
+  allLines.forEach((line, lineIdx) => {
+    const lineWidth = ctx.measureText(line).width;
+    let x = (canvasWidth - lineWidth) / 2;
+    const y = position.startY + lineIdx * position.lineHeight;
+    const spaceW = ctx.measureText(' ').width;
+
+    line.split(' ').forEach(wText => {
+      const wordData = blockWords[wordIndex++];
+      const wWidth = ctx.measureText(wText).width;
+
+      if (!wordData) {
+        ctx.fillText(wText, x, y);
+        x += wWidth + spaceW;
+        return;
+      }
+
+      const progress = Math.max(0, Math.min(1,
+        (timestamp - wordData.start) / Math.max(0.01, wordData.end - wordData.start)
+      ));
+      const charsToShow = Math.floor(progress * wText.length);
+      const visible = wText.slice(0, charsToShow);
+
+      if (visible.length > 0) ctx.fillText(visible, x, y);
+
+      if (charsToShow > 0) {
+        cursorX = x + ctx.measureText(visible).width + 2;
+        cursorY = y;
+      }
+
+      x += wWidth + spaceW;
+    });
+  });
+
+  // Blinking cursor
+  if (cursorX !== null && Math.sin(timestamp * blinkSpeed * Math.PI * 2) > 0) {
+    if (glowStrength > 0) ctx.shadowBlur = 12 * glowStrength;
+    ctx.fillRect(cursorX, cursorY - fontSize * 0.85, 3, fontSize * 0.9);
+  }
+
+  ctx.restore();
+
+  // Scanlines
+  if (scanIntensity > 0) {
+    ctx.save();
+    ctx.globalAlpha = scanIntensity;
+    ctx.fillStyle = '#000';
+    for (let sy = 0; sy < canvasHeight; sy += 3) ctx.fillRect(0, sy, canvasWidth, 1);
+    ctx.restore();
+  }
+}
+
+export function renderGlitchEffect(ctx, opts) {
+  const {
+    text,
+    allWords = null,
+    subtitle = null,
+    timestamp = 0,
+    fontSize,
+    textHeightPercent,
+    fontFamily = "'Share Tech Mono'",
+    state = {},
+    auxCanvas = null,
+    baseIntensity = 0.4,
+    maxSplit = 8,
+    glitchRate = 0.06,
+    corruptionMax = 0.35,
+  } = opts;
+
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const fontSpec = `${fontSize}px ${fontFamily}`;
+
+  // Initialize persistent state
+  if (!state.initialized) {
+    state.globalGlitch = 0;
+    state.sliceIntensity = 0;
+    state.nextGlitchCheck = 0;
+    state.wordStates = {};
+    state.initialized = true;
+  }
+
+  // Filter to current subtitle
+  const blockWords = (allWords && subtitle)
+    ? allWords.filter(w => w.start >= subtitle.startTime - 0.5 && w.start < subtitle.endTime + 0.5)
+    : [];
+
+  // Update per-word state
+  blockWords.forEach(w => {
+    if (!state.wordStates[w.start]) {
+      state.wordStates[w.start] = { alpha: 0, glitchBurst: 0, wasActive: false };
+    }
+    const ws = state.wordStates[w.start];
+    const isActive = timestamp >= w.start && timestamp <= w.end;
+
+    if (isActive && !ws.wasActive) {
+      ws.glitchBurst = 1.0;
+      state.globalGlitch = Math.max(state.globalGlitch, 0.8);
+      state.sliceIntensity = Math.max(state.sliceIntensity, 0.6);
+      ws.wasActive = true;
+    } else if (!isActive) {
+      ws.wasActive = false;
+    }
+
+    ws.alpha = isActive ? Math.min(1, ws.alpha + 0.15) : Math.max(0, ws.alpha - 0.03);
+    ws.glitchBurst = Math.max(0, ws.glitchBurst - 0.07);
+  });
+
+  // Ambient glitch events
+  if (timestamp > state.nextGlitchCheck) {
+    if (Math.random() < glitchRate) {
+      state.globalGlitch = Math.max(state.globalGlitch, 0.3 + Math.random() * 0.5);
+      state.sliceIntensity = Math.max(state.sliceIntensity, Math.random() * 0.5);
+    }
+    state.nextGlitchCheck = timestamp + 0.04;
+  }
+  state.globalGlitch  = Math.max(0, state.globalGlitch  - 0.04);
+  state.sliceIntensity = Math.max(0, state.sliceIntensity - 0.05);
+
+  // Target: render into auxCanvas if provided (for slice displacement), else directly to ctx
+  const offCtx = auxCanvas ? auxCanvas.getContext('2d') : ctx;
+  const offW = auxCanvas ? auxCanvas.width : canvasWidth;
+  const offH = auxCanvas ? auxCanvas.height : canvasHeight;
+
+  if (auxCanvas) offCtx.clearRect(0, 0, offW, offH);
+
+  // Render words
+  if (blockWords.length > 0) {
+    offCtx.font = fontSpec;
+    const lines = wrapText(offCtx, text, offW - 100, fontFamily, fontSize);
+    const position = calculateTextPosition(offH, lines.length, fontSize, textHeightPercent);
+
+    let wordIndex = 0;
+    lines.forEach((line, lineIdx) => {
+      const lineWidth = offCtx.measureText(line).width;
+      let x = (offW - lineWidth) / 2;
+      const y = position.startY + lineIdx * position.lineHeight;
+      const spaceW = offCtx.measureText(' ').width;
+
+      line.split(' ').forEach(wText => {
+        const wordData = blockWords[wordIndex++];
+        const ws = wordData ? (state.wordStates[wordData.start] || { alpha: 0, glitchBurst: 0 }) : { alpha: 1, glitchBurst: 0 };
+        const wWidth = offCtx.measureText(wText).width;
+
+        if (ws.alpha > 0.01) {
+          const glitch = Math.max(ws.glitchBurst, state.globalGlitch * 0.4) * baseIntensity;
+          const split = glitch * maxSplit + (glitch > 0.05 ? (Math.random() - 0.5) * glitch * 5 : 0);
+          const corruption = ws.glitchBurst * corruptionMax;
+          const displayText = corruption > 0.08 ? corruptGlitchText(wText, corruption) : wText;
+          const yJitter = glitch > 0.1 ? (Math.random() - 0.5) * glitch * 6 : 0;
+
+          offCtx.save();
+          offCtx.font = fontSpec;
+          offCtx.textBaseline = 'alphabetic';
+          offCtx.textAlign = 'left';
+
+          if (split > 0.5) {
+            offCtx.globalAlpha = ws.alpha * 0.8;
+            offCtx.fillStyle = '#ff2255';
+            offCtx.fillText(displayText, x - split, y + yJitter);
+            offCtx.globalAlpha = ws.alpha * 0.8;
+            offCtx.fillStyle = '#00ddff';
+            offCtx.fillText(displayText, x + split, y - yJitter);
+          }
+
+          offCtx.globalAlpha = ws.alpha;
+          offCtx.fillStyle = '#ffffff';
+          offCtx.fillText(wText, x, y);
+          offCtx.restore();
+        }
+
+        x += wWidth + spaceW;
+      });
+    });
+  }
+
+  // Scanlines on offscreen
+  offCtx.save();
+  offCtx.globalAlpha = 0.10;
+  offCtx.fillStyle = '#000';
+  for (let sy = 0; sy < offH; sy += 4) offCtx.fillRect(0, sy, offW, 2);
+  offCtx.restore();
+
+  // Noise
+  const noiseAmt = state.globalGlitch * baseIntensity;
+  if (noiseAmt > 0.05) {
+    offCtx.save();
+    for (let i = 0; i < Math.floor(noiseAmt * 20); i++) {
+      offCtx.globalAlpha = Math.random() * 0.6 * noiseAmt;
+      offCtx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';
+      offCtx.fillRect(Math.random() * offW, Math.random() * offH, 2 + Math.random() * 8, 1 + Math.random() * 3);
+    }
+    offCtx.restore();
+  }
+
+  // Composite to main canvas + slice displacement
+  if (auxCanvas) {
+    ctx.drawImage(auxCanvas, 0, 0);
+
+    if (state.sliceIntensity > 0.1) {
+      const numSlices = Math.floor(state.sliceIntensity * 7) + 1;
+      for (let i = 0; i < numSlices; i++) {
+        const sy = Math.floor(Math.random() * canvasHeight);
+        const sh = Math.min(2 + Math.floor(Math.random() * 28), canvasHeight - sy);
+        const dx = (Math.random() - 0.5) * 60 * state.sliceIntensity;
+        ctx.drawImage(auxCanvas, 0, sy, canvasWidth, sh, dx, sy, canvasWidth, sh);
+      }
+    }
+
+    if (state.globalGlitch > 0.85 && Math.random() < 0.12) {
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.restore();
+    }
+  }
 }
