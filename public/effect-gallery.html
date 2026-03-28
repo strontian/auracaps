@@ -274,6 +274,32 @@
             </p>
           </div>
         </div>
+
+        <!-- Typewriter Effect -->
+        <div class="effect-card">
+          <div class="effect-canvas-wrapper">
+            <canvas id="canvas-typewriter" class="effect-canvas"></canvas>
+          </div>
+          <div class="effect-info">
+            <h3 class="effect-title">Typewriter</h3>
+            <p class="effect-description">
+              Characters click into place letter by letter as each word is spoken, with a blinking block cursor and glowing green text on a dark terminal background. CRT scanlines complete the retro-computer look.
+            </p>
+          </div>
+        </div>
+
+        <!-- Glitch Effect -->
+        <div class="effect-card">
+          <div class="effect-canvas-wrapper">
+            <canvas id="canvas-glitch" class="effect-canvas"></canvas>
+          </div>
+          <div class="effect-info">
+            <h3 class="effect-title">Glitch</h3>
+            <p class="effect-description">
+              Each word bursts onto the screen with chromatic RGB splitting, character corruption, and horizontal slice displacement. Ambient glitch events keep the effect alive between words.
+            </p>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -289,7 +315,9 @@
       detectLEDDots,
       renderLEDEffect,
       renderRainbowEffect,
-      renderNeonEffect
+      renderNeonEffect,
+      renderTypewriterEffect,
+      renderGlitchEffect
     } from './effects.mjs';
 
     // Canvas setup
@@ -297,14 +325,18 @@
       holographic: document.getElementById('canvas-holographic'),
       rainbow: document.getElementById('canvas-rainbow'),
       led: document.getElementById('canvas-led'),
-      neon: document.getElementById('canvas-neon')
+      neon: document.getElementById('canvas-neon'),
+      typewriter: document.getElementById('canvas-typewriter'),
+      glitch: document.getElementById('canvas-glitch')
     };
 
     const contexts = {
       holographic: canvases.holographic.getContext('2d'),
       rainbow: canvases.rainbow.getContext('2d'),
       led: canvases.led.getContext('2d'),
-      neon: canvases.neon.getContext('2d')
+      neon: canvases.neon.getContext('2d'),
+      typewriter: canvases.typewriter.getContext('2d'),
+      glitch: canvases.glitch.getContext('2d')
     };
 
     // Initialize canvas sizes
@@ -320,7 +352,9 @@
       holographic: 'COTTON CANDY',
       rainbow: 'RAINBOW FALLS',
       led: 'RETRO LED',
-      neon: 'NEON LIGHTS'
+      neon: 'NEON LIGHTS',
+      typewriter: 'TYPE WRITER',
+      glitch: 'SIGNAL LOST'
     };
 
     const fontSize = 64;
@@ -337,6 +371,12 @@
     let rainbowState = {};
     let ledDots = null;
     let neonWords = null;
+    let typewriterWords = null;
+    let glitchWords = null;
+    let glitchState = {};
+    const glitchAuxCanvas = document.createElement('canvas');
+    glitchAuxCanvas.width = canvasWidth;
+    glitchAuxCanvas.height = canvasHeight;
     let startTime = Date.now();
 
     // Initialize neon words with demo timing
@@ -378,6 +418,25 @@
       });
 
       initNeonWords();
+      initTypewriterWords();
+      initGlitchWords();
+    }
+
+    function initWords(text, wordDuration, gapDuration) {
+      let currentTime = 0;
+      return text.split(' ').map(word => {
+        const w = { word, punctuated_word: word, start: currentTime, end: currentTime + wordDuration };
+        currentTime += wordDuration + gapDuration;
+        return w;
+      });
+    }
+
+    function initTypewriterWords() {
+      typewriterWords = initWords(effectTexts.typewriter, 0.6, 0.15);
+    }
+
+    function initGlitchWords() {
+      glitchWords = initWords(effectTexts.glitch, 0.5, 0.1);
     }
 
     // Render functions for each effect
@@ -449,12 +508,64 @@
       });
     }
 
+    function renderTypewriter() {
+      if (!typewriterWords) return;
+      const loopDuration = 2.5;
+      const timestamp = ((Date.now() - startTime) / 1000) % loopDuration;
+
+      // (no persistent state needed for typewriter)
+
+      contexts.typewriter.clearRect(0, 0, canvasWidth, canvasHeight);
+      contexts.typewriter.fillStyle = '#0a0a0f';
+      contexts.typewriter.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      const subtitle = { startTime: 0, endTime: loopDuration, text: effectTexts.typewriter };
+
+      renderTypewriterEffect(contexts.typewriter, {
+        text: effectTexts.typewriter,
+        allWords: typewriterWords,
+        subtitle,
+        timestamp,
+        fontSize,
+        textHeightPercent
+      });
+    }
+
+    function renderGlitch() {
+      if (!glitchWords) return;
+      const loopDuration = 2.5;
+      const rawTime = (Date.now() - startTime) / 1000;
+      const timestamp = rawTime % loopDuration;
+
+      // Reset glitch state at loop boundary
+      if (timestamp < 0.05 && rawTime > 0.1) glitchState = {};
+
+      contexts.glitch.clearRect(0, 0, canvasWidth, canvasHeight);
+      contexts.glitch.fillStyle = '#0a0a0a';
+      contexts.glitch.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      const subtitle = { startTime: 0, endTime: loopDuration, text: effectTexts.glitch };
+
+      renderGlitchEffect(contexts.glitch, {
+        text: effectTexts.glitch,
+        allWords: glitchWords,
+        subtitle,
+        timestamp,
+        fontSize,
+        textHeightPercent,
+        state: glitchState,
+        auxCanvas: glitchAuxCanvas
+      });
+    }
+
     // Animation loop
     function animate() {
       renderHolo();
       renderRainbow();
       renderLED();
       renderNeon();
+      renderTypewriter();
+      renderGlitch();
 
       requestAnimationFrame(animate);
     }
