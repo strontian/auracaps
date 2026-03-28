@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Caption Preview - Aura Captions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Micro+5&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script async src="https://plausible.io/js/pa-gFm8LktHNQIw8YZFmyeow.js"></script>
   <script>
     window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
@@ -471,6 +472,14 @@
               <canvas id="preview-neon"></canvas>
               <span>Neon</span>
             </button>
+            <button type="button" class="style-card" data-style="typewriter">
+              <canvas id="preview-typewriter"></canvas>
+              <span>Typewriter</span>
+            </button>
+            <button type="button" class="style-card" data-style="glitch">
+              <canvas id="preview-glitch"></canvas>
+              <span>Glitch</span>
+            </button>
           </div>
         </div>
         
@@ -499,7 +508,7 @@
     </footer>
   </div>
 <script type="module">
-    import { renderHolographicEffect, detectLEDDots, renderLEDEffect, renderRainbowEffect, renderNeonEffect } from './effects.mjs';
+    import { renderHolographicEffect, detectLEDDots, renderLEDEffect, renderRainbowEffect, renderNeonEffect, renderTypewriterEffect, renderGlitchEffect } from './effects.mjs';
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -527,6 +536,8 @@
       rainbow:     document.getElementById('preview-rainbow').getContext('2d'),
       led:         document.getElementById('preview-led').getContext('2d'),
       neon:        document.getElementById('preview-neon').getContext('2d'),
+      typewriter:  document.getElementById('preview-typewriter').getContext('2d'),
+      glitch:      document.getElementById('preview-glitch').getContext('2d'),
     };
     for (const c of Object.values(previewCtxs)) {
       c.canvas.width = PREVIEW_W;
@@ -535,8 +546,11 @@
 
     let previewRainbowState = {};
     let previewLedDots = null;
+    let previewGlitchState = {};
     const previewStartTime = Date.now();
     const previewNeonWords = [{ text: PREVIEW_TEXT, alpha: 1.0 }];
+    const previewGlitchSubtitle = { startTime: 0, endTime: 99999, text: PREVIEW_TEXT };
+    const previewGlitchWords = [{ start: 0, end: 99999, text: PREVIEW_TEXT }];
 
     function renderPreviews() {
       const t = (Date.now() - previewStartTime) / 1000;
@@ -554,15 +568,27 @@
       const lCtx = previewCtxs.led;
       lCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
       if (!previewLedDots) {
-        previewLedDots = detectLEDDots({ text: PREVIEW_TEXT, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, squareSize: 5, auxCtx: previewAuxCtx });
+        previewLedDots = detectLEDDots({ text: PREVIEW_TEXT, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, squareSize: 3, auxCtx: previewAuxCtx });
       }
       if (previewLedDots && previewLedDots.length > 0) {
-        renderLEDEffect(lCtx, { dots: previewLedDots, fontSize: PREVIEW_FONT, squareSize: 5 });
+        renderLEDEffect(lCtx, { dots: previewLedDots, fontSize: PREVIEW_FONT, squareSize: 3 });
       }
 
       const nCtx = previewCtxs.neon;
       nCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
       renderNeonEffect(nCtx, { text: PREVIEW_TEXT, words: previewNeonWords, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, tubeColor: '#00f7ff', haloColor: '#0051ff' });
+
+      const twCtx = previewCtxs.typewriter;
+      twCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+      twCtx.fillStyle = '#000';
+      twCtx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+      renderTypewriterEffect(twCtx, { text: PREVIEW_TEXT, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, timestamp: t });
+
+      const gCtx = previewCtxs.glitch;
+      gCtx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+      gCtx.fillStyle = '#000';
+      gCtx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+      renderGlitchEffect(gCtx, { text: PREVIEW_TEXT, allWords: previewGlitchWords, subtitle: previewGlitchSubtitle, fontSize: PREVIEW_FONT, textHeightPercent: PREVIEW_TEXT_HEIGHT, timestamp: t, state: previewGlitchState, atmosphericEffects: false });
 
       requestAnimationFrame(renderPreviews);
     }
@@ -575,7 +601,8 @@
     let currentStyleImage = null;
     let currentStyle = 'holographic';
     
-    let rainbowState = {}; 
+    let rainbowState = {};
+    let glitchState = {};
 
     let subtitles = [];
     let allWords = []; // Renamed from 'words' to be clear it's the master list
@@ -704,11 +731,11 @@
       
       if (currentStyle === 'led') {
         if (text !== lastLEDText || !ledDots) {
-          ledDots = detectLEDDots({ text, fontSize, textHeightPercent, squareSize: 8, auxCtx });
+          ledDots = detectLEDDots({ text, fontSize, textHeightPercent, squareSize: 3, auxCtx });
           lastLEDText = text;
         }
         if (ledDots && ledDots.length > 0) {
-          renderLEDEffect(ctx, { dots: ledDots, fontSize, squareSize: 8 });
+          renderLEDEffect(ctx, { dots: ledDots, fontSize, squareSize: 3 });
         }
       } 
       else if (currentStyle === 'rainbow') {
@@ -728,6 +755,14 @@
             tubeColor: '#00f7ff',
             haloColor: '#0051ff'
         });
+      }
+      else if (currentStyle === 'typewriter') {
+        const cleanText = text.replace(/[ \t]+/g, ' ').trim();
+        renderTypewriterEffect(ctx, { text: cleanText, allWords, subtitle: activeBlock, timestamp, fontSize, textHeightPercent });
+      }
+      else if (currentStyle === 'glitch') {
+        const cleanText = text.replace(/[ \t]+/g, ' ').trim();
+        renderGlitchEffect(ctx, { text: cleanText, allWords, subtitle: activeBlock, timestamp, fontSize, textHeightPercent, state: glitchState, auxCanvas, atmosphericEffects: false });
       }
       else if (currentStyleImage) {
         renderHolographicEffect(ctx, { text, styleImage: currentStyleImage, timestamp, fontSize, textHeightPercent });

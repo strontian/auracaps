@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LED Effect — Experiment</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: ui-monospace, 'SF Mono', monospace;
+      color: #ccc;
+    }
+    canvas {
+      border: 1px solid #222;
+      border-radius: 6px;
+      display: block;
+    }
+    #controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 270px;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 18px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      z-index: 100;
+    }
+    #controls h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #555;
+      margin-bottom: 16px;
+    }
+    .ctrl {
+      margin-bottom: 14px;
+    }
+    .ctrl label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 5px;
+    }
+    .ctrl label span {
+      font-family: monospace;
+      color: #e8c84a;
+      font-size: 12px;
+    }
+    .ctrl input[type=range] { width: 100%; accent-color: #e8c84a; }
+    .ctrl input[type=text] {
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      color: #ddd;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    .ctrl input[type=text]:focus { outline: none; border-color: #555; }
+    .separator {
+      border: none;
+      border-top: 1px solid #2a2a2a;
+      margin: 14px 0;
+    }
+    #redetect-btn {
+      width: 100%;
+      padding: 8px;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #aaa;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    #redetect-btn:hover { background: #262626; color: #ddd; }
+    #dot-count {
+      font-size: 10px;
+      color: #444;
+      text-align: center;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="controls">
+  <h3>LED Effect</h3>
+
+  <div class="ctrl">
+    <label>Text <span></span></label>
+    <input type="text" id="text-input" value="AURACAPS">
+  </div>
+
+  <hr class="separator">
+
+  <div class="ctrl">
+    <label>Font Size <span id="val-fontsize">80</span></label>
+    <input type="range" id="fontsize" min="30" max="160" step="1" value="80">
+  </div>
+
+  <div class="ctrl">
+    <label>Text Height % <span id="val-height">50</span></label>
+    <input type="range" id="height" min="0" max="100" step="1" value="50">
+  </div>
+
+  <hr class="separator">
+
+  <div class="ctrl">
+    <label>Dot Spacing (px) <span id="val-squaresize">3</span></label>
+    <input type="range" id="squaresize" min="1" max="32" step="1" value="3">
+  </div>
+
+  <div class="ctrl">
+    <label>Core Radius <span id="val-core">0.20</span></label>
+    <input type="range" id="core" min="0.10" max="0.70" step="0.01" value="0.20">
+  </div>
+
+  <div class="ctrl">
+    <label>Glow Radius <span id="val-glow">0.20</span></label>
+    <input type="range" id="glow" min="0.10" max="1.20" step="0.01" value="0.20">
+  </div>
+
+  <div class="ctrl">
+    <label>Glow Opacity <span id="val-glowopacity">1.00</span></label>
+    <input type="range" id="glowopacity" min="0.0" max="1.0" step="0.01" value="1.00">
+  </div>
+
+  <div class="ctrl">
+    <label>Palette <span></span></label>
+    <select id="palette" style="width:100%; background:#111; border:1px solid #333; color:#ddd; padding:6px 8px; border-radius:4px; font-family:inherit; font-size:12px;">
+      <option value="rainbow">Rainbow</option>
+      <option value="fire">Fire</option>
+      <option value="ice">Ice</option>
+      <option value="neon">Neon</option>
+      <option value="gold">Gold</option>
+      <option value="mono">Monochrome</option>
+    </select>
+  </div>
+
+  <hr class="separator">
+
+  <div class="ctrl">
+    <label>Color Speed <span id="val-colorspeed">0.08</span></label>
+    <input type="range" id="colorspeed" min="0.00" max="0.50" step="0.005" value="0.08">
+  </div>
+
+  <div class="ctrl">
+    <label>Pulse Speed <span id="val-pulsespeed">0.05</span></label>
+    <input type="range" id="pulsespeed" min="0.00" max="0.30" step="0.005" value="0.05">
+  </div>
+
+  <div class="ctrl">
+    <label>Min Brightness <span id="val-minbright">0.50</span></label>
+    <input type="range" id="minbright" min="0.0" max="1.0" step="0.01" value="0.50">
+  </div>
+
+  <hr class="separator">
+
+  <div class="ctrl">
+    <label>Box Padding <span id="val-boxpad">0.5</span></label>
+    <input type="range" id="boxpad" min="0.0" max="10.0" step="0.05" value="0.5">
+  </div>
+
+  <div class="ctrl">
+    <label>Corner Radius <span id="val-cornerrad">1.00</span></label>
+    <input type="range" id="cornerrad" min="0.0" max="2.0" step="0.01" value="1.00">
+  </div>
+
+  <hr class="separator">
+
+  <button id="redetect-btn">Re-detect Dots</button>
+  <div id="dot-count"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Aux canvas for dot detection
+const auxCanvas = document.createElement('canvas');
+const auxCtx = auxCanvas.getContext('2d');
+
+// Canvas size
+const W = 900, H = 400;
+canvas.width = W; canvas.height = H;
+auxCanvas.width = W; auxCanvas.height = H;
+
+// ─── LED color palettes ───────────────────────────────────────────────────────
+const PALETTES = {
+  rainbow:  ['#FF0000','#FF8800','#FFFF00','#88FF00','#00FF00','#00FFFF','#0088FF','#8800FF'],
+  fire:     ['#FF0000','#FF2200','#FF5500','#FF8800','#FFAA00','#FFCC00','#FF4400','#CC2200'],
+  ice:      ['#00CCFF','#00AAFF','#0088FF','#0055FF','#00EEFF','#88DDFF','#AAEEFF','#0033CC'],
+  neon:     ['#FF00FF','#FF00AA','#AA00FF','#FF0066','#CC00FF','#FF33FF','#7700FF','#FF0099'],
+  gold:     ['#FFD700','#FFC200','#FFB300','#FFAA00','#FF9900','#FFDD44','#FFE066','#FFA500'],
+  mono:     ['#FFFFFF','#DDDDDD','#BBBBBB','#999999','#BBBBBB','#DDDDDD','#FFFFFF','#EEEEEE'],
+};
+
+let LED_COLORS = PALETTES.rainbow;
+
+// ─── Helpers (inlined from effects.mjs) ─────────────────────────────────────
+
+function wrapText(ctx, text, maxWidth, fontFamily, fontSize) {
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + ' ' + word : word;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+function calculateTextPosition(canvasHeight, lineCount, fontSize, textHeightPercent) {
+  const lineHeight = fontSize * 1.2;
+  const totalTextHeight = lineCount * lineHeight;
+  const textVerticalRange = canvasHeight - totalTextHeight - fontSize * 0.8;
+  const invertedPercent = 100 - textHeightPercent;
+  const startY = (textVerticalRange * invertedPercent / 100) + fontSize * 1.6;
+  return { startY, lineHeight };
+}
+
+function stampText(ctx, text, fontSize, textHeightPercent) {
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const padding = 50;
+  const maxWidth = canvasWidth - padding * 2 - 40;
+
+  ctx.font = `${fontSize}px Tinos`;
+  const lines = wrapText(ctx, text, maxWidth, 'Tinos', fontSize);
+  const position = calculateTextPosition(canvasHeight, lines.length, fontSize, textHeightPercent);
+
+  ctx.save();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `${fontSize}px Tinos`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  lines.forEach((line, i) => {
+    const lineWidth = ctx.measureText(line).width;
+    const lineX = (canvasWidth - lineWidth) / 2;
+    const lineY = position.startY + i * position.lineHeight;
+    ctx.fillText(line, lineX, lineY);
+  });
+  ctx.restore();
+  return { lines, position };
+}
+
+function detectLEDDots(text, fontSize, textHeightPercent, squareSize) {
+  auxCtx.clearRect(0, 0, W, H);
+  stampText(auxCtx, text, fontSize, textHeightPercent);
+
+  const imageData = auxCtx.getImageData(0, 0, W, H);
+  const data = imageData.data;
+  const visited = new Set();
+  const dots = [];
+
+  for (let py = 0; py < H; py += squareSize) {
+    for (let px = 0; px < W; px += squareSize) {
+      const key = `${px},${py}`;
+      if (visited.has(key)) continue;
+
+      let hasWhite = false;
+      let sumX = 0, sumY = 0, count = 0;
+
+      outer: for (let dy = 0; dy < squareSize; dy++) {
+        for (let dx = 0; dx < squareSize; dx++) {
+          const cx = px + dx, cy = py + dy;
+          if (cx >= W || cy >= H) continue;
+          const idx = (cy * W + cx) * 4;
+          if (data[idx] > 200 && data[idx+1] > 200 && data[idx+2] > 200 && data[idx+3] > 200) {
+            hasWhite = true;
+            sumX += cx; sumY += cy; count++;
+          }
+        }
+      }
+
+      if (hasWhite && count > 0) {
+        visited.add(key);
+        dots.push({
+          x: sumX / count,
+          y: sumY / count,
+          colorIndex: Math.random() * LED_COLORS.length,
+          colorSpeed: 0.05 + Math.random() * 0.1,   // per-dot jitter, overridden by global speed
+          brightness: Math.random() * Math.PI * 2
+        });
+      }
+    }
+  }
+  return dots;
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+
+let dots = [];
+let animId;
+
+// Read controls
+function param(id) { return parseFloat(document.getElementById(id).value); }
+function textVal() { return document.getElementById('text-input').value || 'AURACAPS'; }
+
+function redetect() {
+  dots = detectLEDDots(textVal(), param('fontsize'), param('height'), param('squaresize'));
+  document.getElementById('dot-count').textContent = `${dots.length} dots`;
+}
+
+// ─── Render loop ─────────────────────────────────────────────────────────────
+
+function render() {
+  const squareSize  = param('squaresize');
+  const fontSize    = param('fontsize');
+  const coreRad     = param('core');
+  const glowRad     = param('glow');
+  const glowOpacity = param('glowopacity');
+  const colorSpeed  = param('colorspeed');
+  const pulseSpeed  = param('pulsespeed');
+  const minBright   = param('minbright');
+  const boxPad      = param('boxpad');
+  const cornerRad   = param('cornerrad');
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!dots || dots.length === 0) {
+    animId = requestAnimationFrame(render);
+    return;
+  }
+
+  // Bounding box
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  dots.forEach(d => {
+    minX = Math.min(minX, d.x); maxX = Math.max(maxX, d.x);
+    minY = Math.min(minY, d.y); maxY = Math.max(maxY, d.y);
+  });
+
+  const pad = fontSize * boxPad;
+  const bx = minX - pad, by = minY - pad;
+  const bw = (maxX - minX) + pad * 2;
+  const bh = (maxY - minY) + pad * 2;
+  const br = fontSize * cornerRad;
+
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, br);
+  ctx.fill();
+
+  // Dots
+  dots.forEach(dot => {
+    dot.colorIndex += colorSpeed;
+    if (dot.colorIndex >= LED_COLORS.length) dot.colorIndex = 0;
+
+    dot.brightness += pulseSpeed;
+    const b = (Math.sin(dot.brightness) + 1) / 2 * (1 - minBright) + minBright;
+
+    const color = LED_COLORS[Math.floor(dot.colorIndex)];
+    ctx.fillStyle = color;
+
+    // Core
+    ctx.globalAlpha = b;
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, squareSize * coreRad, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glow halo
+    ctx.globalAlpha = b * glowOpacity;
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, squareSize * glowRad, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.globalAlpha = 1.0;
+  animId = requestAnimationFrame(render);
+}
+
+// ─── Wire up controls ────────────────────────────────────────────────────────
+
+let redetectTimer;
+function debouncedRedetect() {
+  clearTimeout(redetectTimer);
+  redetectTimer = setTimeout(redetect, 80);
+}
+
+function bindSlider(id, needsRedetect = false) {
+  const el = document.getElementById(id);
+  const val = document.getElementById('val-' + id);
+  el.addEventListener('input', () => {
+    val.textContent = el.value;
+    if (needsRedetect) debouncedRedetect();
+  });
+}
+
+['core','glow','glowopacity','colorspeed','pulsespeed','minbright','boxpad','cornerrad'].forEach(id => bindSlider(id, false));
+['fontsize','height','squaresize'].forEach(id => bindSlider(id, true));
+
+document.getElementById('text-input').addEventListener('change', redetect);
+document.getElementById('redetect-btn').addEventListener('click', redetect);
+
+document.getElementById('palette').addEventListener('change', e => {
+  LED_COLORS = PALETTES[e.target.value];
+  // Reset color indices so dots don't jump out of range
+  dots.forEach(d => { d.colorIndex = Math.random() * LED_COLORS.length; });
+});
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
+
+document.fonts.load('80px Tinos').then(() => {
+  redetect();
+  render();
+});
+</script>
+</body>
+</html>

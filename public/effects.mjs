@@ -402,12 +402,12 @@ export function renderLEDEffect(ctx, opts) {
     ctx.globalAlpha = brightness;
     
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, squareSize * 0.3, 0, Math.PI * 2);
+    ctx.arc(dot.x, dot.y, squareSize * 0.2, 0, Math.PI * 2);
     ctx.fill();
-    
-    ctx.globalAlpha = brightness * 0.3;
+
+    ctx.globalAlpha = brightness * 1.0;
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, squareSize * 0.5, 0, Math.PI * 2);
+    ctx.arc(dot.x, dot.y, squareSize * 0.2, 0, Math.PI * 2);
     ctx.fill();
   });
   
@@ -700,6 +700,7 @@ export function renderGlitchEffect(ctx, opts) {
     maxSplit = 8,
     glitchRate = 0.06,
     corruptionMax = 0.35,
+    atmosphericEffects = true,
   } = opts;
 
   const canvasWidth = ctx.canvas.width;
@@ -809,23 +810,25 @@ export function renderGlitchEffect(ctx, opts) {
     });
   }
 
-  // Scanlines on offscreen
-  offCtx.save();
-  offCtx.globalAlpha = 0.10;
-  offCtx.fillStyle = '#000';
-  for (let sy = 0; sy < offH; sy += 4) offCtx.fillRect(0, sy, offW, 2);
-  offCtx.restore();
-
-  // Noise
-  const noiseAmt = state.globalGlitch * baseIntensity;
-  if (noiseAmt > 0.05) {
+  if (atmosphericEffects) {
+    // Scanlines on offscreen
     offCtx.save();
-    for (let i = 0; i < Math.floor(noiseAmt * 20); i++) {
-      offCtx.globalAlpha = Math.random() * 0.6 * noiseAmt;
-      offCtx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';
-      offCtx.fillRect(Math.random() * offW, Math.random() * offH, 2 + Math.random() * 8, 1 + Math.random() * 3);
-    }
+    offCtx.globalAlpha = 0.10;
+    offCtx.fillStyle = '#000';
+    for (let sy = 0; sy < offH; sy += 4) offCtx.fillRect(0, sy, offW, 2);
     offCtx.restore();
+
+    // Noise
+    const noiseAmt = state.globalGlitch * baseIntensity;
+    if (noiseAmt > 0.05) {
+      offCtx.save();
+      for (let i = 0; i < Math.floor(noiseAmt * 20); i++) {
+        offCtx.globalAlpha = Math.random() * 0.6 * noiseAmt;
+        offCtx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';
+        offCtx.fillRect(Math.random() * offW, Math.random() * offH, 2 + Math.random() * 8, 1 + Math.random() * 3);
+      }
+      offCtx.restore();
+    }
   }
 
   // Composite to main canvas + slice displacement
@@ -842,7 +845,7 @@ export function renderGlitchEffect(ctx, opts) {
       }
     }
 
-    if (state.globalGlitch > 0.85 && Math.random() < 0.12) {
+    if (atmosphericEffects && state.globalGlitch > 0.85 && Math.random() < 0.12) {
       ctx.save();
       ctx.globalAlpha = 0.08;
       ctx.fillStyle = Math.random() > 0.5 ? '#ff2255' : '#00ddff';

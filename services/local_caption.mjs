@@ -206,7 +206,7 @@ const sdrEncodeArgs = [
             text,
             fontSize,
             textHeightPercent,
-            squareSize: 8,
+            squareSize: 3,
             auxCtx: auxCtx // Pass the reusable scratchpad context
           });
           lastText = text;
