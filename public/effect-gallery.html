@@ -12,6 +12,11 @@
     }
 
     @font-face {
+      font-family: 'Micro 5';
+      src: url('/fonts/Micro5-Regular.ttf') format('truetype');
+    }
+
+    @font-face {
       font-family: 'Tinos';
       src: url('/fonts/Tinos-Regular.ttf') format('truetype');
     }
@@ -571,13 +576,15 @@
     }
 
     // Initialize
-    loadResources()
-      .then(() => {
-        animate();
-      })
-      .catch(error => {
-        console.error('Error loading resources:', error);
-      });
+    Promise.all([
+      loadResources(),
+      document.fonts.load("64px 'Micro 5'")
+    ]).then(() => {
+      animate();
+    }).catch(error => {
+      console.error('Error loading resources:', error);
+      animate(); // start anyway
+    });
   </script>
 </body>
 </html>
