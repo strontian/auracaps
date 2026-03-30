@@ -60,8 +60,8 @@ export function calculateTextPosition(canvasHeight, lineCount, fontSize, textHei
 export function stampText(ctx, text, fontSize, fontFamily, textHeightPercent) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const padding = 50;
-  const maxWidth = canvasWidth - (padding * 2) - 40;
+  const padding = Math.round(canvasWidth * 0.05);
+  const maxWidth = canvasWidth - (padding * 2);
   
   ctx.font = `${fontSize}px ${fontFamily}`;
   const lines = wrapText(ctx, text, maxWidth, fontFamily, fontSize);
@@ -400,14 +400,14 @@ export function renderLEDEffect(ctx, opts) {
     
     ctx.fillStyle = color;
     ctx.globalAlpha = brightness;
-    
+
     ctx.beginPath();
     ctx.arc(dot.x, dot.y, squareSize * 0.2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.globalAlpha = brightness * 1.0;
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, squareSize * 0.2, 0, Math.PI * 2);
+    ctx.arc(dot.x, dot.y, squareSize * 0.4, 0, Math.PI * 2);
     ctx.fill();
   });
   
@@ -480,7 +480,7 @@ export function renderNeonEffect(ctx, opts) {
   }
 
   // --- 2. LAYOUT CALCULATION ---
-  const padding = 50;
+  const padding = Math.round(canvasWidth * 0.05);
   const maxWidth = canvasWidth - (padding * 2);
 
   ctx.font = `${fontSize}px ${fontFamily}`;
@@ -591,7 +591,7 @@ export function renderTypewriterEffect(ctx, opts) {
 
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const padding = 50;
+  const padding = Math.round(canvasWidth * 0.05);
   const maxWidth = canvasWidth - padding * 2;
   const fontSpec = `${fontSize}px ${fontFamily}`;
 

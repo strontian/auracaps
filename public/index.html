@@ -44,6 +44,13 @@
             font-style: normal;
         }
 
+        @font-face {
+            font-family: 'Tinos';
+            src: url('fonts/Tinos-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -51,7 +58,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 10px 20px 20px;
             color: white;
         }
 
@@ -68,21 +75,22 @@
 
         .tagline {
             font-size: 1.5rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.5rem;
             opacity: 0.95;
             font-weight: 300;
         }
 
         /* ── Demo section ── */
         .demo-section {
-            margin: 1.5rem auto;
-            display: inline-block;
+            margin: 0.75rem auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .video-wrap {
             position: relative;
-            display: block;
-            width: 300px;
+            width: 380px;
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
@@ -226,10 +234,10 @@
                 <canvas id="captionCanvas"></canvas>
             </div>
             <div class="style-selector">
-                <button class="style-pill active" data-effect="holographic">Cotton Candy</button>
+                <button class="style-pill active" data-effect="neon">Neon</button>
                 <button class="style-pill" data-effect="rainbow">Rainbow</button>
                 <button class="style-pill" data-effect="led">LED</button>
-                <button class="style-pill" data-effect="neon">Neon</button>
+                <button class="style-pill" data-effect="holographic">Cotton Candy</button>
                 <button class="style-pill" data-effect="typewriter">Typewriter</button>
                 <button class="style-pill" data-effect="glitch">Glitch</button>
             </div>
@@ -266,23 +274,40 @@
         // ── Title canvas ─────────────────────────────────────────────────────
         const titleCanvas = document.getElementById('titleCanvas');
         const titleCtx = titleCanvas.getContext('2d');
+        const TITLE_FONT_SIZE = 80;
+        const TITLE_PAD_X = 20;
+        const TITLE_PAD_Y = 16;
         titleCanvas.width = 800;
-        titleCanvas.height = 200;
+        titleCanvas.height = TITLE_FONT_SIZE * 2;
         const titleAux = document.createElement('canvas');
-        titleAux.width = 800; titleAux.height = 200;
         const titleState = {};
 
-        new FontFace('Modak', 'url(fonts/Modak-Regular.ttf)').load()
+        new FontFace('Modak', 'url(fonts/Modak-Regular.ttf)').load().then(f => {
+            document.fonts.add(f);
+            // Measure actual text width and shrink canvas to fit
+            titleCtx.font = `${TITLE_FONT_SIZE}px Modak`;
+            const measured = titleCtx.measureText('Aura Captions');
+            // stampText uses canvasWidth * 0.05 padding on each side (10% total),
+            // so divide by 0.9 to ensure the text fits without wrapping
+            const w = Math.ceil(measured.width / 0.9) + TITLE_PAD_X * 2;
+            const h = TITLE_FONT_SIZE * 2;
+            titleCanvas.width  = w;
+            titleCanvas.height = h;
+            titleAux.width     = w;
+            titleAux.height    = h;
+        }).catch(() => {});
+        new FontFace('Tinos', 'url(fonts/Tinos-Regular.ttf)').load()
             .then(f => document.fonts.add(f)).catch(() => {});
 
-        (function animateTitle() {
-            titleCtx.clearRect(0, 0, 800, 200);
+        function renderTitle() {
+            const w = titleCanvas.width;
+            const h = titleCanvas.height;
+            titleCtx.clearRect(0, 0, w, h);
             renderRainbowEffect(titleCtx, {
-                text: 'Aura Captions', fontSize: 80, textHeightPercent: 50,
+                text: 'Aura Captions', fontSize: TITLE_FONT_SIZE, textHeightPercent: 50,
                 state: titleState, auxCanvas: titleAux
             });
-            requestAnimationFrame(animateTitle);
-        })();
+        }
 
         // ── SRT data ──────────────────────────────────────────────────────────
         const SRT = `1
@@ -647,9 +672,14 @@ magic. So yeah. Bye.`;
         let lastNeonText = '';
 
         function syncCanvas() {
-            const w = video.clientWidth;
-            const h = video.clientHeight;
+            let w = video.clientWidth;
+            let h = video.clientHeight;
+            // Fallback: derive height from natural aspect ratio if not yet painted
+            if (w > 0 && !h && video.videoWidth && video.videoHeight) {
+                h = Math.round(w * video.videoHeight / video.videoWidth);
+            }
             if (!w || !h) return;
+            if (captionCanvas.width === w && captionCanvas.height === h) return;
             captionCanvas.width  = w;
             captionCanvas.height = h;
             auxCanvas.width      = w;
@@ -661,8 +691,8 @@ magic. So yeah. Bye.`;
         }
 
         // ── Effect cycling ────────────────────────────────────────────────────
-        const EFFECTS = ['holographic', 'rainbow', 'led', 'neon', 'typewriter', 'glitch'];
-        let currentEffect = 'holographic';
+        const EFFECTS = ['neon', 'rainbow', 'led', 'holographic', 'typewriter', 'glitch'];
+        let currentEffect = 'neon';
         let userPicked    = false;
         let cycleTimer    = null;
 
@@ -680,8 +710,12 @@ magic. So yeah. Bye.`;
             lastNeonText = '';
         }
 
-        // ── Render loop ───────────────────────────────────────────────────────
-        function renderCaption() {
+        // ── Unified render loop ───────────────────────────────────────────────
+        function renderFrame() {
+            // Title
+            renderTitle();
+
+            // Caption overlay
             const t     = video.currentTime;
             const block = getBlock(t);
             const text  = block ? block.text : '';
@@ -691,8 +725,8 @@ magic. So yeah. Bye.`;
             captionCtx.clearRect(0, 0, w, h);
 
             if (text && w > 0 && h > 0) {
-                const fontSize         = Math.round(w * 0.082);
-                const textHeightPercent = 80;
+                const fontSize          = Math.round(w * 0.09);
+                const textHeightPercent = 7;
 
                 if (currentEffect === 'holographic') {
                     if (holoImage) {
@@ -719,26 +753,31 @@ magic. So yeah. Bye.`;
                     }
 
                 } else if (currentEffect === 'neon') {
-                    if (text !== lastNeonText) {
-                        neonWords    = [{ text, alpha: 1.0 }];
-                        lastNeonText = text;
-                    }
+                    const neonSubtitle = block ? { startTime: block.start, endTime: block.end } : null;
                     renderNeonEffect(captionCtx, {
-                        text, words: neonWords, fontSize, textHeightPercent,
+                        text, fontSize, textHeightPercent,
+                        allWords: block ? makeWords(block) : null,
+                        subtitle: neonSubtitle,
+                        timestamp: t,
                         tubeColor: '#00f7ff', haloColor: '#0051ff'
                     });
 
                 } else if (currentEffect === 'typewriter') {
+                    const twSubtitle = block ? { startTime: block.start, endTime: block.end } : null;
                     renderTypewriterEffect(captionCtx, {
                         text, fontSize, textHeightPercent,
-                        timestamp: block ? t - block.start : 0
+                        allWords: block ? makeWords(block) : null,
+                        subtitle: twSubtitle,
+                        timestamp: t,
+                        scanIntensity: 0
                     });
 
                 } else if (currentEffect === 'glitch') {
+                    const glitchSubtitle = block ? { startTime: block.start, endTime: block.end } : null;
                     renderGlitchEffect(captionCtx, {
                         text,
                         allWords: block ? makeWords(block) : [],
-                        subtitle: block,
+                        subtitle: glitchSubtitle,
                         timestamp: t,
                         fontSize, textHeightPercent,
                         state: glitchState,
@@ -748,7 +787,7 @@ magic. So yeah. Bye.`;
                 }
             }
 
-            requestAnimationFrame(renderCaption);
+            requestAnimationFrame(renderFrame);
         }
 
         // ── Init ──────────────────────────────────────────────────────────────
@@ -781,7 +820,7 @@ magic. So yeah. Bye.`;
                 }
             }, 4000);
 
-            renderCaption();
+            renderFrame();
         }
 
         init().catch(console.error);
