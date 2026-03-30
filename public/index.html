@@ -6,21 +6,22 @@
     <meta name="description" content="AuraCaptions - Create stunning, artistic video captions with holographic, liquid metal, and flame effects. Beyond traditional subtitles.">
     <meta name="keywords" content="video captions, stylized subtitles, holographic text, video effects, caption editor, subtitle styling">
     <meta name="author" content="AuraCaptions">
-    
+
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://auracaptions.com/">
     <meta property="og:title" content="AuraCaptions - Artistic Video Captions">
     <meta property="og:description" content="Create stunning, artistic video captions with holographic, liquid metal, and flame effects.">
-    
+
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="AuraCaptions - Artistic Video Captions">
     <meta name="twitter:description" content="Create stunning, artistic video captions with holographic, liquid metal, and flame effects.">
-    
+
     <!-- Google Sign-In -->
     <meta name="google-signin-client_id" content="672558205267-m1qr9fuh0dj2c4dh2ug4qn5fitor5b3v.apps.googleusercontent.com">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Micro+5&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <script async src="https://plausible.io/js/pa-gFm8LktHNQIw8YZFmyeow.js"></script>
     <script>
     window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
@@ -28,21 +29,21 @@
     </script>
 
     <title>AuraCaptions - Artistic Video Captions</title>
-    
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         @font-face {
             font-family: 'Modak';
             src: url('fonts/Modak-Regular.ttf') format('truetype');
             font-weight: normal;
             font-style: normal;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -53,47 +54,121 @@
             padding: 20px;
             color: white;
         }
-        
+
         .container {
             max-width: 800px;
             text-align: center;
         }
-        
+
         #titleCanvas {
             max-width: 100%;
             height: auto;
             margin-bottom: 1rem;
         }
-        
+
         .tagline {
             font-size: 1.5rem;
             margin-bottom: 1.5rem;
             opacity: 0.95;
             font-weight: 300;
         }
-        
-        .video-container {
+
+        /* ── Demo section ── */
+        .demo-section {
             margin: 1.5rem auto;
-            max-width: 280px;
-            max-height: 640px;
+            display: inline-block;
+        }
+
+        .video-wrap {
+            position: relative;
+            display: block;
+            width: 300px;
             border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         }
-        
-        .video-container video {
+
+        .video-wrap video {
             width: 100%;
             height: auto;
             display: block;
         }
-        
+
+        #captionCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .style-selector {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 14px;
+        }
+
+        .style-pill {
+            padding: 6px 13px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+        }
+
+        .style-pill:hover {
+            background: rgba(0, 0, 0, 0.45);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .style-pill.active {
+            color: white;
+            font-weight: 600;
+        }
+
+        .style-pill[data-effect="holographic"].active {
+            border-color: #e879f9;
+            box-shadow: 0 0 10px rgba(232, 121, 249, 0.45);
+        }
+        .style-pill[data-effect="rainbow"].active {
+            border-color: #fb923c;
+            box-shadow: 0 0 10px rgba(251, 146, 60, 0.45);
+        }
+        .style-pill[data-effect="led"].active {
+            border-color: #4ade80;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.45);
+        }
+        .style-pill[data-effect="neon"].active {
+            border-color: #22d3ee;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+        }
+        .style-pill[data-effect="typewriter"].active {
+            border-color: #fbbf24;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.45);
+        }
+        .style-pill[data-effect="glitch"].active {
+            border-color: #f87171;
+            box-shadow: 0 0 10px rgba(248, 113, 113, 0.45);
+        }
+
+        /* ── Sign-in ── */
         .signin-container {
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 1.5rem 0;
         }
-        
+
         .cta-button {
             display: inline-block;
             padding: 1rem 2.5rem;
@@ -108,54 +183,31 @@
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
-        
+
         .cta-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }
-        
+
         @media (max-width: 768px) {
-            .tagline {
-                font-size: 1.2rem;
-            }
-            
-            .video-container {
-                margin: 1.5rem auto;
-            }
-            
-            .features {
-                flex-direction: column;
-                gap: 1rem;
-            }
+            .tagline { font-size: 1.2rem; }
+            .video-wrap { width: 260px; }
         }
     </style>
-    
+
     <script>
         function handleCredentialResponse(response) {
-            // Show loading state
-            // Send the credential to your backend
             fetch('/api/gauth', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    credential: response.credential
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential: response.credential })
             })
             .then(res => {
-                if (!res.ok) {
-                    throw new Error('Authentication failed');
-                }
+                if (!res.ok) throw new Error('Authentication failed');
                 return res.json();
             })
-            .then(data => {
-                console.log('Login successful:', data);
-                window.location.href = '/upload.html';
-            })
-            .catch(error => {
-                console.error('Login error:', error);
-            });
+            .then(() => { window.location.href = '/upload.html'; })
+            .catch(err => { console.error('Login error:', err); });
         }
     </script>
 </head>
@@ -164,22 +216,32 @@
         <canvas id="titleCanvas"></canvas>
         <h2></h2>
         <p class="tagline"></p>
-        
-        <!-- Video Preview -->
-        <div class="video-container">
-            <video autoplay loop muted playsinline>
-                <source src="https://pub-d930c63077b24e93b1887ae7723a7db7.r2.dev/aura2.mov" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
+
+        <!-- Demo video with effect selector -->
+        <div class="demo-section">
+            <div class="video-wrap">
+                <video id="demoVideo" autoplay loop muted playsinline>
+                    <source src="https://pub-d930c63077b24e93b1887ae7723a7db7.r2.dev/short.mov" type="video/mp4">
+                </video>
+                <canvas id="captionCanvas"></canvas>
+            </div>
+            <div class="style-selector">
+                <button class="style-pill active" data-effect="holographic">Cotton Candy</button>
+                <button class="style-pill" data-effect="rainbow">Rainbow</button>
+                <button class="style-pill" data-effect="led">LED</button>
+                <button class="style-pill" data-effect="neon">Neon</button>
+                <button class="style-pill" data-effect="typewriter">Typewriter</button>
+                <button class="style-pill" data-effect="glitch">Glitch</button>
+            </div>
         </div>
-        
+
         <!-- Google Sign-In -->
         <div class="signin-container">
             <div id="g_id_onload"
                  data-client_id="672558205267-m1qr9fuh0dj2c4dh2ug4qn5fitor5b3v.apps.googleusercontent.com"
                  data-callback="handleCredentialResponse">
             </div>
-            <div class="g_id_signin" 
+            <div class="g_id_signin"
                  data-type="standard"
                  data-size="large"
                  data-theme="filled_blue"
@@ -188,57 +250,541 @@
                  data-logo_alignment="left">
             </div>
         </div>
-        
-        
     </div>
-    
+
     <script type="module">
-        import { renderRainbowEffect } from './effects.mjs';
-        
-        const canvas = document.getElementById('titleCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Set canvas size
-        const canvasWidth = 800;
-        const canvasHeight = 200;
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        
-        // Create auxiliary canvas for rainbow effect
-        const auxCanvas = document.createElement('canvas');
-        auxCanvas.width = canvasWidth;
-        auxCanvas.height = canvasHeight;
-        
-        // State object to maintain animation state
-        const state = {};
-        
-        // Load the Modak font
-        const font = new FontFace('Modak', 'url(fonts/Modak-Regular.ttf)');
-        
-        font.load().then(() => {
-            document.fonts.add(font);
-            animate();
-        }).catch(err => {
-            console.error('Font loading failed:', err);
-            // Try to animate anyway
-            animate();
-        });
-        
-        function animate() {
-            // Clear canvas
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-            
-            // Render rainbow effect
-            renderRainbowEffect(ctx, {
-                text: 'Aura Captions',
-                fontSize: 80,
-                textHeightPercent: 50,
-                state: state,
-                auxCanvas: auxCanvas
+        import {
+            renderRainbowEffect,
+            renderHolographicEffect,
+            detectLEDDots,
+            renderLEDEffect,
+            renderNeonEffect,
+            renderTypewriterEffect,
+            renderGlitchEffect
+        } from './effects.mjs';
+
+        // ── Title canvas ─────────────────────────────────────────────────────
+        const titleCanvas = document.getElementById('titleCanvas');
+        const titleCtx = titleCanvas.getContext('2d');
+        titleCanvas.width = 800;
+        titleCanvas.height = 200;
+        const titleAux = document.createElement('canvas');
+        titleAux.width = 800; titleAux.height = 200;
+        const titleState = {};
+
+        new FontFace('Modak', 'url(fonts/Modak-Regular.ttf)').load()
+            .then(f => document.fonts.add(f)).catch(() => {});
+
+        (function animateTitle() {
+            titleCtx.clearRect(0, 0, 800, 200);
+            renderRainbowEffect(titleCtx, {
+                text: 'Aura Captions', fontSize: 80, textHeightPercent: 50,
+                state: titleState, auxCanvas: titleAux
             });
-            
-            requestAnimationFrame(animate);
+            requestAnimationFrame(animateTitle);
+        })();
+
+        // ── SRT data ──────────────────────────────────────────────────────────
+        const SRT = `1
+00:00:00,240 --> 00:00:04,400
+Hi. So I recently got back into playing
+
+2
+00:00:04,400 --> 00:00:07,600
+Magic the Gathering. I haven't played since high
+
+3
+00:00:07,600 --> 00:00:10,320
+school, and I met some new friends here
+
+4
+00:00:10,320 --> 00:00:12,705
+that play, and it's really fun. So I've
+
+5
+00:00:12,705 --> 00:00:16,145
+been playing commander, and I did get the
+
+6
+00:00:16,145 --> 00:00:24,064
+start of a, Sephiroth commander, deck. And, you
+
+7
+00:00:24,064 --> 00:00:26,165
+know, one of the fun things about magic
+
+8
+00:00:26,224 --> 00:00:29,529
+is, like, all of the beautiful card sleeves
+
+9
+00:00:29,910 --> 00:00:33,110
+and and dice and placemats and all the,
+
+10
+00:00:33,110 --> 00:00:36,630
+like, beautiful things that you can buy to
+
+11
+00:00:36,630 --> 00:00:39,510
+have, like, a really cool setup. Obviously, I'm
+
+12
+00:00:39,510 --> 00:00:41,830
+very interested in that, but I kind of
+
+13
+00:00:41,830 --> 00:00:45,024
+wanted to get into it and set some
+
+14
+00:00:45,184 --> 00:00:47,985
+you know, just have my little setup without
+
+15
+00:00:47,985 --> 00:00:49,905
+having to, like, spend a bunch on a
+
+16
+00:00:49,905 --> 00:00:53,665
+new hobby. So I did that today. I
+
+17
+00:00:53,665 --> 00:00:58,740
+had this old box from Container Store, and
+
+18
+00:00:58,740 --> 00:01:01,860
+I covered it with this, washi paper that
+
+19
+00:01:01,860 --> 00:01:06,020
+I also had, this Japanese, paper, just with
+
+20
+00:01:06,020 --> 00:01:09,735
+glue. It's really easy to do, and so
+
+21
+00:01:09,735 --> 00:01:12,135
+that's kinda my my box. And then what
+
+22
+00:01:12,135 --> 00:01:16,235
+I put in it is, my commander deck.
+
+23
+00:01:16,295 --> 00:01:19,015
+I'm my Sephiroth deck I'm keeping in this.
+
+24
+00:01:19,015 --> 00:01:22,560
+This was, originally a Japanese stationery set, and
+
+25
+00:01:22,560 --> 00:01:23,920
+and I kept the box because it was
+
+26
+00:01:23,920 --> 00:01:27,040
+so pretty. And it's really good for holding
+
+27
+00:01:27,040 --> 00:01:29,299
+my card. So I'll I will show you
+
+28
+00:01:29,920 --> 00:01:34,899
+Sephiroth. Here he is in all his glory.
+
+29
+00:01:36,640 --> 00:01:42,695
+Oh, is he? And oh, and I'll just
+
+30
+00:01:42,695 --> 00:01:44,795
+show you one other card that I absolutely
+
+31
+00:01:45,655 --> 00:01:50,455
+love. Where is she? I really wanna build
+
+32
+00:01:50,455 --> 00:01:55,640
+a Hatsune Miku deck, just for the vibes,
+
+33
+00:01:55,780 --> 00:02:00,020
+and there's this one counterspell card that I
+
+34
+00:02:00,020 --> 00:02:05,380
+got. Where are you? So many rats. So
+
+35
+00:02:05,380 --> 00:02:16,795
+many rats and goblins. Not goblins. Where are
+
+36
+00:02:16,795 --> 00:02:29,790
+you, Hatsune? Oh my gosh. Here she is.
+
+37
+00:02:30,569 --> 00:02:35,935
+Look at this counterspell. She's so cute. She's
+
+38
+00:02:35,935 --> 00:02:41,155
+like that's like a a horned paparazzi. Adorable.
+
+39
+00:02:42,015 --> 00:02:45,535
+Anyhoo. Sorry. Getting sidetracked. So, yeah, in my
+
+40
+00:02:45,535 --> 00:02:49,360
+deck, I have my commander deck. I'm storing
+
+41
+00:02:49,360 --> 00:02:58,480
+it here, for now. And then I have
+
+42
+00:03:00,755 --> 00:03:03,075
+this was also a stationary box. I really
+
+43
+00:03:03,075 --> 00:03:04,755
+like saving boxes for things like this because
+
+44
+00:03:04,755 --> 00:03:05,955
+you never know when they're gonna come in
+
+45
+00:03:05,955 --> 00:03:08,194
+handy. It's the perfect fit for all of
+
+46
+00:03:08,194 --> 00:03:10,915
+my other cards, that are just, like, not
+
+47
+00:03:11,075 --> 00:03:12,915
+I'm not haven't really built into a deck
+
+48
+00:03:12,915 --> 00:03:15,280
+yet. And then someone got me a gift
+
+49
+00:03:15,280 --> 00:03:17,840
+that had, like, a little jewelry bag with
+
+50
+00:03:17,840 --> 00:03:20,879
+it, so I kept that. And, I'm using
+
+51
+00:03:20,879 --> 00:03:24,080
+it to store these d and d dice
+
+52
+00:03:24,080 --> 00:03:26,660
+that I got at the Washington Wren Fair,
+
+53
+00:03:27,545 --> 00:03:29,625
+that are fairy fire themed. I rolled a
+
+54
+00:03:29,625 --> 00:03:31,545
+d 20 when I picked I picked them
+
+55
+00:03:31,545 --> 00:03:32,905
+up, so I was like and I didn't
+
+56
+00:03:32,905 --> 00:03:34,745
+have, like, a fancy set yet, so I
+
+57
+00:03:34,745 --> 00:03:37,225
+was like, I gotta have them. And then,
+
+58
+00:03:38,745 --> 00:03:41,190
+I'm keeping my token cards in here. I
+
+59
+00:03:41,270 --> 00:03:42,870
+feel like token cards would be really fun
+
+60
+00:03:42,870 --> 00:03:44,710
+to make some custom ones, but we'll we'll
+
+61
+00:03:44,710 --> 00:03:46,470
+get to that. And then this is not
+
+62
+00:03:46,470 --> 00:03:49,990
+really useful in any way, but, I got
+
+63
+00:03:49,990 --> 00:03:53,030
+this Sailor Moon figurine. She's, like, made out
+
+64
+00:03:53,030 --> 00:03:54,390
+of, like I think she's made out of
+
+65
+00:03:54,390 --> 00:03:55,910
+crystal. I'm not sure. She could be just,
+
+66
+00:03:55,910 --> 00:03:59,405
+like, very convincing cold plastic. I got her
+
+67
+00:03:59,405 --> 00:04:00,765
+when I lived in LA, and I just
+
+68
+00:04:00,765 --> 00:04:02,365
+was like, she's cute. I could just, like,
+
+69
+00:04:02,365 --> 00:04:04,445
+put her out in my air like, my
+
+70
+00:04:04,445 --> 00:04:08,045
+area to feel good about my life when
+
+71
+00:04:08,045 --> 00:04:12,050
+I'm playing, Magic. So, yeah, that is my
+
+72
+00:04:12,050 --> 00:04:14,290
+setup. It took me, like, an you know,
+
+73
+00:04:14,290 --> 00:04:16,850
+less than an hour to kind of get
+
+74
+00:04:16,850 --> 00:04:19,010
+all this together from stuff that I had,
+
+75
+00:04:19,010 --> 00:04:21,649
+and I'm really happy with it for now.
+
+76
+00:04:21,649 --> 00:04:24,588
+So, yay. And I'm actually in the car
+
+77
+00:04:24,588 --> 00:04:26,748
+on the way to go and play some
+
+78
+00:04:26,748 --> 00:04:30,608
+magic. So yeah. Bye.`;
+
+        function parseSRT(raw) {
+            const blocks = [];
+            for (const entry of raw.trim().split(/\n\n+/)) {
+                const lines = entry.trim().split('\n');
+                if (lines.length < 3) continue;
+                const m = lines[1].match(/(\d+):(\d+):(\d+),(\d+) --> (\d+):(\d+):(\d+),(\d+)/);
+                if (!m) continue;
+                const sec = (h, min, s, ms) => +h * 3600 + +min * 60 + +s + +ms / 1000;
+                blocks.push({
+                    start: sec(m[1], m[2], m[3], m[4]),
+                    end:   sec(m[5], m[6], m[7], m[8]),
+                    text:  lines.slice(2).join(' ')
+                });
+            }
+            return blocks;
         }
+
+        const blocks = parseSRT(SRT);
+
+        function getBlock(t) {
+            return blocks.find(b => t >= b.start && t < b.end) || null;
+        }
+
+        // Synthesize evenly-spaced word timing from a block (for typewriter/glitch)
+        function makeWords(block) {
+            const words = block.text.split(/\s+/).filter(Boolean);
+            const wDur = (block.end - block.start) / words.length;
+            return words.map((w, i) => ({
+                text: w,
+                start: block.start + i * wDur,
+                end:   block.start + (i + 1) * wDur,
+            }));
+        }
+
+        // ── Canvas & state setup ──────────────────────────────────────────────
+        const video         = document.getElementById('demoVideo');
+        const captionCanvas = document.getElementById('captionCanvas');
+        const captionCtx    = captionCanvas.getContext('2d');
+        const auxCanvas     = document.createElement('canvas');
+        const ledAuxCanvas  = document.createElement('canvas');
+
+        let holoImage    = null;
+        let ledDots      = null;
+        let lastLEDText  = null;
+        let rainbowState = {};
+        let glitchState  = {};
+        let neonWords    = [];
+        let lastNeonText = '';
+
+        function syncCanvas() {
+            const w = video.clientWidth;
+            const h = video.clientHeight;
+            if (!w || !h) return;
+            captionCanvas.width  = w;
+            captionCanvas.height = h;
+            auxCanvas.width      = w;
+            auxCanvas.height     = h;
+            ledAuxCanvas.width   = w;
+            ledAuxCanvas.height  = h;
+            ledDots = null;
+            lastLEDText = null;
+        }
+
+        // ── Effect cycling ────────────────────────────────────────────────────
+        const EFFECTS = ['holographic', 'rainbow', 'led', 'neon', 'typewriter', 'glitch'];
+        let currentEffect = 'holographic';
+        let userPicked    = false;
+        let cycleTimer    = null;
+
+        function setEffect(name, byUser = true) {
+            currentEffect = name;
+            if (byUser) {
+                userPicked = true;
+                clearInterval(cycleTimer);
+            }
+            document.querySelectorAll('.style-pill').forEach(p => {
+                p.classList.toggle('active', p.dataset.effect === name);
+            });
+            ledDots = null;
+            lastLEDText = null;
+            lastNeonText = '';
+        }
+
+        // ── Render loop ───────────────────────────────────────────────────────
+        function renderCaption() {
+            const t     = video.currentTime;
+            const block = getBlock(t);
+            const text  = block ? block.text : '';
+            const w     = captionCanvas.width;
+            const h     = captionCanvas.height;
+
+            captionCtx.clearRect(0, 0, w, h);
+
+            if (text && w > 0 && h > 0) {
+                const fontSize         = Math.round(w * 0.082);
+                const textHeightPercent = 80;
+
+                if (currentEffect === 'holographic') {
+                    if (holoImage) {
+                        renderHolographicEffect(captionCtx, {
+                            text, styleImage: holoImage, timestamp: t, fontSize, textHeightPercent
+                        });
+                    }
+
+                } else if (currentEffect === 'rainbow') {
+                    renderRainbowEffect(captionCtx, {
+                        text, fontSize, textHeightPercent, state: rainbowState, auxCanvas
+                    });
+
+                } else if (currentEffect === 'led') {
+                    if (text !== lastLEDText) {
+                        ledDots = detectLEDDots({
+                            text, fontSize, textHeightPercent, squareSize: 3,
+                            auxCtx: ledAuxCanvas.getContext('2d')
+                        });
+                        lastLEDText = text;
+                    }
+                    if (ledDots && ledDots.length > 0) {
+                        renderLEDEffect(captionCtx, { dots: ledDots, fontSize, squareSize: 3 });
+                    }
+
+                } else if (currentEffect === 'neon') {
+                    if (text !== lastNeonText) {
+                        neonWords    = [{ text, alpha: 1.0 }];
+                        lastNeonText = text;
+                    }
+                    renderNeonEffect(captionCtx, {
+                        text, words: neonWords, fontSize, textHeightPercent,
+                        tubeColor: '#00f7ff', haloColor: '#0051ff'
+                    });
+
+                } else if (currentEffect === 'typewriter') {
+                    renderTypewriterEffect(captionCtx, {
+                        text, fontSize, textHeightPercent,
+                        timestamp: block ? t - block.start : 0
+                    });
+
+                } else if (currentEffect === 'glitch') {
+                    renderGlitchEffect(captionCtx, {
+                        text,
+                        allWords: block ? makeWords(block) : [],
+                        subtitle: block,
+                        timestamp: t,
+                        fontSize, textHeightPercent,
+                        state: glitchState,
+                        auxCanvas,
+                        atmosphericEffects: false
+                    });
+                }
+            }
+
+            requestAnimationFrame(renderCaption);
+        }
+
+        // ── Init ──────────────────────────────────────────────────────────────
+        async function init() {
+            // Load holographic texture
+            holoImage = await new Promise((res, rej) => {
+                const img = new Image();
+                img.onload  = () => res(img);
+                img.onerror = rej;
+                img.src = '/images/holo.jpg';
+            }).catch(() => null);
+
+            // Sync canvas when video dimensions are known
+            const doSync = () => requestAnimationFrame(syncCanvas);
+            video.addEventListener('loadedmetadata', doSync);
+            if (video.readyState >= 1) doSync();
+            // Also sync on resize
+            new ResizeObserver(syncCanvas).observe(video);
+
+            // Pill buttons
+            document.querySelectorAll('.style-pill').forEach(btn => {
+                btn.addEventListener('click', () => setEffect(btn.dataset.effect, true));
+            });
+
+            // Auto-cycle every 4 seconds until user picks
+            cycleTimer = setInterval(() => {
+                if (!userPicked) {
+                    const next = (EFFECTS.indexOf(currentEffect) + 1) % EFFECTS.length;
+                    setEffect(EFFECTS[next], false);
+                }
+            }, 4000);
+
+            renderCaption();
+        }
+
+        init().catch(console.error);
     </script>
 </body>
 </html>
