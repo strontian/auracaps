@@ -256,7 +256,7 @@ export function renderHolographicEffect(ctx, opts) {
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = Math.max(1, fontSize * 0.04);
   ctx.lineJoin = 'miter';
   ctx.miterLimit = 2;
   ctx.font = `${fontSize}px ${fontFamily}`;
