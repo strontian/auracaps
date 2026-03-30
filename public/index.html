@@ -242,11 +242,11 @@
             </div>
             <div class="style-selector">
                 <button class="style-pill active" data-effect="neon">Neon</button>
+                <button class="style-pill" data-effect="typewriter">Typewriter</button>
+                <button class="style-pill" data-effect="glitch">Glitch</button>
                 <button class="style-pill" data-effect="rainbow">Rainbow</button>
                 <button class="style-pill" data-effect="led">LED</button>
                 <button class="style-pill" data-effect="holographic">Cotton Candy</button>
-                <button class="style-pill" data-effect="typewriter">Typewriter</button>
-                <button class="style-pill" data-effect="glitch">Glitch</button>
             </div>
         </div>
 
@@ -698,7 +698,7 @@ magic. So yeah. Bye.`;
         }
 
         // ── Effect cycling ────────────────────────────────────────────────────
-        const EFFECTS = ['neon', 'rainbow', 'led', 'holographic', 'typewriter', 'glitch'];
+        const EFFECTS = ['neon', 'typewriter', 'glitch', 'rainbow', 'led', 'holographic'];
         let currentEffect = 'neon';
         let userPicked    = false;
         let cycleTimer    = null;
