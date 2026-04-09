@@ -1,3 +1,6 @@
+
+https://github.com/user-attachments/assets/f7657527-82c9-4a2d-a323-df2257615367
+
 # Auracaps
 
 Auracaps is a video captioning web app that burns styled, animated captions into your videos. Upload a video, choose an effect, and get back a new video with captions rendered directly into the frames.
